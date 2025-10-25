@@ -4,6 +4,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { signIn } from 'next-auth/react'
+import React from 'react'
+import { FcGoogle } from 'react-icons/fc'
+import { IoMdClose } from 'react-icons/io'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -33,6 +37,13 @@ export default function LoginPage() {
             setError(err.message);
         }
     };
+
+    const handleGoogleSignIn = () => {
+        signIn('google', { 
+          callbackUrl: '/menu',
+          prompt: 'select_account', // Цей рядок залишаємо, він правильний
+        }) 
+      }
 
     return (
         // ВИКОРИСТОВУЄМО НОВІ КЛАСИ-КОНТЕЙНЕРИ
@@ -71,7 +82,8 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <button className="googleBtn">
+                <button className="googleBtn"
+                onClick={handleGoogleSignIn}>
                     <span className="googleIcon">G</span> Продовжити через Google
                 </button>
 

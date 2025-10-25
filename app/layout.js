@@ -1,4 +1,8 @@
+// app/layout.js
+
 import './globals.css';
+// 1. ▼▼▼ ІМПОРТУЄМО НАШ НОВИЙ ПРОВАЙДЕР ▼▼▼
+import AuthProvider from './components/AuthProvider';
 
 export const metadata = {
     title: 'NAZVA - Гейміфіковане меню',
@@ -8,7 +12,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
     return (
         <html lang="uk" suppressHydrationWarning={true}>
-        <body>{children}</body>
+            <body>
+                {/* 2. ▼▼▼ ОГОРТАЄМО {children} У ПРОВАЙДЕР ▼▼▼ */}
+                <AuthProvider>
+                    {children}
+                </AuthProvider>
+            </body>
         </html>
     );
 }

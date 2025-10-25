@@ -2,32 +2,46 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // 1. Додано useEffect
+import { useRouter } from 'next/navigation'; // 2. Додано useRouter
 import ProfileModal from '../components/ProfileModal';
+import { useSession } from 'next-auth/react';
+import { RiAccountBoxFill } from "react-icons/ri";
+import AuthGuard from '../components/AuthGuard';
+
 
 export default function MenuPage() {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    
+    // 3. Отримуємо не тільки 'session', але й 'status'
+    const { data: session, status } = useSession();
 
+    // 7. Якщо код дійшов сюди, юзер 100% залогінений
     return (
+        <AuthGuard>
         <>
             <ProfileModal
                 isOpen={isProfileOpen}
                 onClose={() => setIsProfileOpen(false)}
+                // 8. Передаємо дані користувача в модальне вікно
+                user={session?.user}
             />
 
-            {/* ВИКОРИСТОВУЄМО НОВИЙ КЛАС-КОНТЕЙНЕР */}
             <main className="pageContainer menuPageContainer">
-                {/* Обгортка, яка обмежує ширину */}
                 <div className="primaryMenuContentWrapper">
                     <div className="menuHeaderImage">
+                        {/* 9. Оновлюємо іконку профілю */}
                         <div className="profileIcon" onClick={() => setIsProfileOpen(true)}>
-                            👤
+                            <RiAccountBoxFill size={30} color="#131414ff" />
                         </div>
                     </div>
 
                     <div className="menuProfileCard">
-                        <div className="menuProfileAvatar"></div>
+                        {/* 10. Оновлюємо аватарку в картці */}
+                        <div className="menuProfileAvatar">
+                        </div>
                         <div className="menuProfileInfo">
+                            {/* 11. Оновлюємо ім'я в картці */}
                             <h2>NAZVA</h2>
                             <p>★★★★☆</p>
                             <span>Буковель, 32</span>
@@ -41,7 +55,6 @@ export default function MenuPage() {
                     </div>
 
                     <nav className="menuNavList">
-                        {/* ОНОВЛЕНЕ ПОСИЛАННЯ */}
                         <Link href="/menu-secondary?category=Гарячі страви" className="menuNavItem">
                             Кухня
                         </Link>
@@ -58,5 +71,6 @@ export default function MenuPage() {
                 </div>
             </main>
         </>
+        </AuthGuard>
     );
 }

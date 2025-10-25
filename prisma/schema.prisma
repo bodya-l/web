@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,29 +9,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Модель користувача
+// ▼▼▼ МОДЕЛЬ USER, ВИПРАВЛЕНА ДЛЯ NEXT-AUTH ▼▼▼
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique // email буде унікальним
-  password  String   // Тут буде зберігатись хешований пароль
-  role      String   @default("CUSTOMER") // Наприклад, CUSTOMER або OWNER
-  createdAt DateTime @default(now())
+  // id ТЕПЕР STRING (CUID), ЯК ЦЬОГО ОЧІКУЄ NEXT-AUTH
+  id        String    @id @default(cuid())
+  name      String?
+  email     String?   @unique
+  emailVerified DateTime?
+  image     String?
+  
+  // 'password' залишається опціональним
+  password  String?
+  
+  role      String    @default("CUSTOMER")
+  createdAt DateTime  @default(now())
+
+  // Зв'язки
+  accounts  Account[]
+  sessions  Session[]
 }
-// Модель для категорій (Кухня, Напої і т.д.)
+
+// ▼▼▼ МОДЕЛІ NEXT-AUTH (userId ТЕПЕР STRING) ▼▼▼
+
+model Account {
+  id                String  @id @default(cuid())
+  // userId ТЕПЕР STRING, щоб відповідати User.id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  // userId ТЕПЕР STRING, щоб відповідати User.id
+  userId       String
+  expires      DateTime
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ▼▼▼ ВАШІ МОДЕЛІ (ЗАЛИШАЄМО З INT ID, ЦЕ ОК) ▼▼▼
+
 model Category {
   id     Int    @id @default(autoincrement())
   name   String @unique
-  dishes Dish[] // Зв'язок: одна категорія має багато страв
+  dishes Dish[]
 }
 
-// Модель для страв
 model Dish {
   id          Int      @id @default(autoincrement())
   name        String
   description String
-  price       Float    // Ціна
-  calories    Int      // Калорії (для зеленої/червоної іконки)
-  imageUrl    String   // Посилання на фото страви
+  price       Float
+  calories    Int
+  imageUrl    String
   categoryId  Int
   category    Category @relation(fields: [categoryId], references: [id])
 }

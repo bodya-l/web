@@ -5,8 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import ProfileModal from '../components/ProfileModal';
+import { useSession } from 'next-auth/react';
+import { RiAccountBoxFill } from "react-icons/ri";
+import AuthGuard from '../components/AuthGuard';
 
 export default function MenuSecondaryPage() {
+    const { data: session, status } = useSession();
+
     const [dishes, setDishes] = useState([]);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -25,11 +30,13 @@ export default function MenuSecondaryPage() {
     }, [category]); // Ефект спрацює, якщо категорія зміниться
 
     return (
+        <AuthGuard>
         <>
             {/* Наша модалка, яка буде поверх всього */}
             <ProfileModal
                 isOpen={isProfileOpen}
                 onClose={() => setIsProfileOpen(false)}
+                user={session?.user}
             />
 
             {/* Контейнер сторінки, що заповнює екран */}
@@ -50,7 +57,7 @@ export default function MenuSecondaryPage() {
                         <div className="headerIcons">
                             <span className="cartIcon">🛒</span>
                             <span className="profileIcon" onClick={() => setIsProfileOpen(true)}>
-                👤
+                <RiAccountBoxFill size={30} color="#131414ff" />
               </span>
                         </div>
                     </header>
@@ -161,5 +168,6 @@ export default function MenuSecondaryPage() {
                 </div>
             </main>
         </>
+        </AuthGuard>
     );
 }
