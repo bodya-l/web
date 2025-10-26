@@ -20,7 +20,13 @@ export default function MenuSecondaryPage() {
     // Отримуємо функції та дані з контексту кошика
     const { addToCart, cartCount } = useCart();
 
+
     // Завантажуємо дані з нашого API, коли сторінка відкривається
+
+    const [activeCategory, setActiveCategory] = useState('Гарячі страви');
+
+  // 2. Ви кажете: "при кліку, зробити цей стан `true`
+
     useEffect(() => {
         if (category) {
             fetch(`/api/dishes?category=${category}`)
@@ -80,20 +86,20 @@ export default function MenuSecondaryPage() {
                             <div className="sideNavItem with-dropdown">
                                 <span>Кухня</span>
                                 <ul className="dropdown-menu">
-                                    <li><Link href="/menu-secondary?category=Гарячі страви" className="sideNavItem-sub">Гарячі страви</Link></li>
-                                    <li><Link href="/menu-secondary?category=Супи" className="sideNavItem-sub">Супи</Link></li>
-                                    <li><Link href="/menu-secondary?category=Салати" className="sideNavItem-sub">Салати</Link></li>
-                                    <li><Link href="/menu-secondary?category=Десерти" className="sideNavItem-sub">Десерти</Link></li>
+                                    <li><Link href="/menu-secondary?category=Гарячі страви" onClick={() => setActiveCategory("Гарячі страви")} className={activeCategory === "Гарячі страви" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Гарячі страви</Link></li>
+                                    <li><Link href="/menu-secondary?category=Супи" onClick={() => setActiveCategory("Супи")} className={activeCategory === "Супи" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Супи</Link></li>
+                                    <li><Link href="/menu-secondary?category=Салати" onClick={() => setActiveCategory("Салати")} className={activeCategory === "Салати" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Салати</Link></li>
+                                    <li><Link href="/menu-secondary?category=Десерти" onClick={() => setActiveCategory("Десерти")} className={activeCategory === "Десерти" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Десерти</Link></li>
                                 </ul>
                             </div>
                             {/* --- НАПОЇ --- */}
                             <div className="sideNavItem with-dropdown">
                                 <span>Напої</span>
                                 <ul className="dropdown-menu">
-                                    <li><Link href="/menu-secondary?category=Алкогольні напої" className="sideNavItem-sub">Алкогольні напої</Link></li>
-                                    <li><Link href="/menu-secondary?category=Безалкогольні напої" className="sideNavItem-sub">Безалкогольні напої</Link></li>
-                                    <li><Link href="/menu-secondary?category=Кава" className="sideNavItem-sub">Кава</Link></li>
-                                    <li><Link href="/menu-secondary?category=Чай" className="sideNavItem-sub">Чай</Link></li>
+                                    <li><Link href="/menu-secondary?category=Алкогольні напої" onClick={() => setActiveCategory("Алкогольні напої")} className={activeCategory === "Алкогольні напої" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Алкогольні напої</Link></li>
+                                    <li><Link href="/menu-secondary?category=Безалкогольні напої" onClick={() => setActiveCategory("Безалкогольні напої")} className={activeCategory === "Безалкогольні напої" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Безалкогольні напої</Link></li>
+                                    <li><Link href="/menu-secondary?category=Кава" onClick={() => setActiveCategory("Кава")} className={activeCategory === "Кава" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Кава</Link></li>
+                                    <li><Link href="/menu-secondary?category=Чай" onClick={() => setActiveCategory("Чай")} className={activeCategory === "Чай" ? 'active_sideNavItem-sub' : 'sideNavItem-sub'}>Чай</Link></li>
                                 </ul>
                             </div>
                             {/* --- ПІЦА --- */}
