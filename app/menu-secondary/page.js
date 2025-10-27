@@ -27,6 +27,10 @@ export default function MenuSecondaryPage() {
 
   // 2. Ви кажете: "при кліку, зробити цей стан `true`
 
+    const [activeCategory, setActiveCategory] = useState('Гарячі страви');
+
+  // 2. Ви кажете: "при кліку, зробити цей стан `true`
+
     useEffect(() => {
         if (category) {
             fetch(`/api/dishes?category=${category}`)
