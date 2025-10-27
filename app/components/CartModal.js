@@ -2,13 +2,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useCart } from '@/context/CartContext';
+// ⬅️ clearCart має бути доступним через useCart
+import { useCart } from '@/context/CartContext'; 
 import Image from 'next/image';
 import { X, Trash2, Minus, Plus } from 'lucide-react';
 
 export default function CartModal({ isOpen, onClose }) {
-    // Враховуйте, що dish.id - це number (Int) з вашої схеми Prisma
-    const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
+    // ⬅️ ДОДАНО clearCart до деструктуризації
+    const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart(); 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -16,15 +17,13 @@ export default function CartModal({ isOpen, onClose }) {
         return null;
     }
 
-    // --- ▼ ЗАМІСТЬ handleCheckout (API ОПЛАТИ) ▼ ---
+    // --- ▼ ЛОГІКА ОФОРМЛЕННЯ ЗАМОВЛЕННЯ ▼ ---
     const handlePlaceOrder = async () => {
         setIsLoading(true);
         setError('');
         
-        // Перетворюємо cartItems на формат, який очікує наш API (/api/create-order)
-        // API очікує: { cart: [{ dishId: number, quantity: number }, ...] }
         const itemsForApi = cartItems.map(item => ({
-            dishId: item.id, // item.id - це ID страви
+            dishId: item.id,
             quantity: item.quantity
         }));
 
@@ -38,15 +37,15 @@ export default function CartModal({ isOpen, onClose }) {
             const data = await res.json();
 
             if (!res.ok) {
-                // Якщо сервер повернув JSON-помилку (напр. 401), беремо її повідомлення
                 throw new Error(data.message || 'Failed to place order');
             }
 
             // Успіх!
             alert('Ваше замовлення успішно оформлено! Очікуйте підтвердження на Кухні.');
             
-            // TODO: Очистити кошик після успішного замовлення
-            // cartItems.forEach(item => removeFromCart(item.id));
+            // ▼▼▼ ВИПРАВЛЕННЯ: ОЧИЩЕННЯ КОШИКА ▼▼▼
+            clearCart(); 
+            // ▲▲▲ ▲▲▲ ▲▲▲
             
             onClose(); // Закриваємо модалку
 
@@ -57,7 +56,7 @@ export default function CartModal({ isOpen, onClose }) {
             setIsLoading(false);
         }
     };
-    // --- ▲ КІНЕЦЬ ЗАМІНИ ▲ ---
+    // --- ▲ КІНЕЦЬ ЛОГІКИ ▲ ---
 
 
     return (

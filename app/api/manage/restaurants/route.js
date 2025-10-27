@@ -1,33 +1,44 @@
 // app/api/manage/restaurants/route.js
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
-import prisma from '../../../../lib/prisma';
+import { authOptions } from '@/lib/auth.config'; // Використовуємо абсолютний шлях
+import prisma from '@/lib/prisma';
+
+// Визначаємо очікувані типи для даних за допомогою JSDoc
+/**
+ * @typedef {object} RestaurantCreateData
+ * @property {string} name
+ * @property {string} [description]
+ * @property {string} [imageUrl]
+ */
 
 // Функція GET для отримання ресторанів поточного власника
-export async function GET(request) {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email || session.user.role !== 'OWNER') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export async function GET() {
     try {
-        const owner = await prisma.user.findUnique({
-            where: { email: session.user.email },
-        });
+        const session = await getServerSession(authOptions);
 
-        if (!owner) {
-            return NextResponse.json({ error: 'Owner not found' }, { status: 404 });
+        // 1. ПЕРЕВІРКА АВТОРИЗАЦІЇ
+        // У JS не можна використовувати ?.role, тому перевіряємо як JS-об'єкт
+        if (!session?.user?.id || session.user.role !== 'OWNER') {
+            return NextResponse.json({ message: 'Доступ заборонено. Необхідний статус ВЛАСНИКА.' }, { status: 403 });
         }
+        
+        // 2. ОТРИМУЄМО РЕСТОРАНИ (ЗА ОДИН ЗАПИТ)
+        // ID власника вже доступний як число (встановлено в колбеках)
+        const ownerId = session.user.id; 
 
         const restaurants = await prisma.restaurant.findMany({
             where: {
-                ownerId: owner.id,
+                ownerId: ownerId, 
             },
             orderBy: {
                 name: 'asc',
             },
+            include: {
+                orders: {
+                    select: { id: true }
+                }
+            }
         });
 
         return NextResponse.json(restaurants, { status: 200 });
@@ -35,7 +46,7 @@ export async function GET(request) {
     } catch (error) {
         console.error('Error fetching owner restaurants:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { message: 'Internal Server Error' },
             { status: 500 }
         );
     }
@@ -43,32 +54,29 @@ export async function GET(request) {
 
 // Функція POST для створення нового ресторану
 export async function POST(request) {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email || session.user.role !== 'OWNER') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     try {
-        const owner = await prisma.user.findUnique({
-            where: { email: session.user.email },
-        });
-        if (!owner) {
-            return NextResponse.json({ error: 'Owner not found' }, { status: 404 });
-        }
+        const session = await getServerSession(authOptions);
 
-        const data = await request.json();
+        // 1. ПЕРЕВІРКА АВТОРИЗАЦІЇ
+        if (!session?.user?.id || session.user.role !== 'OWNER') {
+            return NextResponse.json({ message: 'Доступ заборонено. Необхідний статус ВЛАСНИКА.' }, { status: 403 });
+        }
+        
+        const ownerId = session.user.id;
+        /** @type {RestaurantCreateData} */
+        const data = await request.json(); 
 
         if (!data.name) {
-            return NextResponse.json({ error: 'Restaurant name is required' }, { status: 400 });
+            return NextResponse.json({ message: 'Restaurant name is required' }, { status: 400 });
         }
 
+        // 2. СТВОРЕННЯ РЕСТОРАНУ
         const newRestaurant = await prisma.restaurant.create({
             data: {
                 name: data.name,
                 description: data.description,
                 imageUrl: data.imageUrl,
-                ownerId: owner.id,
+                ownerId: ownerId, 
             },
         });
 
@@ -76,11 +84,11 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Error creating restaurant:', error);
-        if (error.code === 'P2002') {
-            return NextResponse.json({ error: 'Restaurant with this name already exists' }, { status: 409 });
+        if (error?.code === 'P2002') { 
+            return NextResponse.json({ message: 'Restaurant with this name already exists' }, { status: 409 });
         }
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { message: 'Internal Server Error' },
             { status: 500 }
         );
     }

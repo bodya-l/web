@@ -19,11 +19,9 @@ export const CartProvider = ({ children }) => {
                     item.id === dish.id ? { ...item, quantity: item.quantity + 1 } : item
                 );
             } else {
-                // При додаванні товару припускаємо, що він має ID, ім'я, ціну та URL
                 return [...prevItems, { 
                     ...dish, 
                     quantity: 1,
-                    // Переконайтеся, що об'єкт dish має поля id, price, name, imageUrl
                 }];
             }
         });
@@ -44,6 +42,13 @@ export const CartProvider = ({ children }) => {
         );
     };
 
+    // ▼▼▼ ДОДАНО: Функція очищення кошика ▼▼▼
+    const clearCart = () => {
+        setCartItems([]);
+    };
+    // ▲▲▲ ▲▲▲ ▲▲▲
+
+
     // Розрахунок загальної суми та кількості
     const cartTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
@@ -55,6 +60,7 @@ export const CartProvider = ({ children }) => {
         addToCart,
         removeFromCart,
         updateQuantity,
+        clearCart, // ⬅️ Експортуємо нову функцію
         cartTotal,
         cartCount,
     };
@@ -63,14 +69,10 @@ export const CartProvider = ({ children }) => {
 };
 
 // Хук для зручного доступу до контексту
-export const useCart = () => { // ⬅️ Це коректний Named Export
+export const useCart = () => {
     const context = useContext(CartContext);
     if (context === undefined) {
         throw new Error('useCart must be used within a CartProvider');
     }
     return context;
 };
-
-// ❗️ ВАЖЛИВО: Перевірте, чи всі файли, які використовують useCart, 
-// імпортують його з ФІГУРНИМИ ДУЖКАМИ:
-// import { useCart } from '@/context/CartContext';
