@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { X, Trash2, Minus, Plus } from 'lucide-react';
 
 export default function CartModal({ isOpen, onClose }) {
+    // Враховуйте, що dish.id - це number (Int) з вашої схеми Prisma
     const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -15,32 +16,48 @@ export default function CartModal({ isOpen, onClose }) {
         return null;
     }
 
-    const handleCheckout = async () => {
+    // --- ▼ ЗАМІСТЬ handleCheckout (API ОПЛАТИ) ▼ ---
+    const handlePlaceOrder = async () => {
         setIsLoading(true);
         setError('');
-        console.log('Proceeding to checkout with items:', cartItems);
+        
+        // Перетворюємо cartItems на формат, який очікує наш API (/api/create-order)
+        // API очікує: { cart: [{ dishId: number, quantity: number }, ...] }
+        const itemsForApi = cartItems.map(item => ({
+            dishId: item.id, // item.id - це ID страви
+            quantity: item.quantity
+        }));
 
         try {
-            const res = await fetch('/api/payment/mono', {
+            const res = await fetch('/api/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: cartItems, totalAmount: cartTotal }),
+                body: JSON.stringify({ cart: itemsForApi }),
             });
 
             const data = await res.json();
 
-            if (!res.ok || !data.pageUrl) {
-                throw new Error(data.error || 'Failed to initiate payment');
+            if (!res.ok) {
+                // Якщо сервер повернув JSON-помилку (напр. 401), беремо її повідомлення
+                throw new Error(data.message || 'Failed to place order');
             }
-            window.location.href = data.pageUrl;
+
+            // Успіх!
+            alert('Ваше замовлення успішно оформлено! Очікуйте підтвердження на Кухні.');
+            
+            // TODO: Очистити кошик після успішного замовлення
+            // cartItems.forEach(item => removeFromCart(item.id));
+            
+            onClose(); // Закриваємо модалку
 
         } catch (err) {
-            console.error('Checkout error:', err);
-            setError('Не вдалося розпочати оплату. Спробуйте ще раз.');
+            console.error('Order error:', err);
+            setError(`Помилка замовлення: ${err.message}`);
         } finally {
             setIsLoading(false);
         }
     };
+    // --- ▲ КІНЕЦЬ ЗАМІНИ ▲ ---
 
 
     return (
@@ -53,8 +70,7 @@ export default function CartModal({ isOpen, onClose }) {
                     <X size={24} />
                 </button>
                 
-                {/* Вміст модалки (заголовок + контент + футер) */}
-                {/* modalTitle (вбудовано з відступом) */}
+                {/* modalTitle */}
                 <h2 className="text-2xl font-bold text-gray-900 p-6 pb-0">
                     Ваш Кошик
                 </h2>
@@ -63,7 +79,6 @@ export default function CartModal({ isOpen, onClose }) {
                 <div className="p-6 overflow-y-auto flex-grow">
                     {/* cartItemsList */}
                     {cartItems.length === 0 ? (
-                        // emptyCartText
                         <p className="text-center text-gray-500 py-8">Ваш кошик порожній.</p>
                     ) : (
                         <div className="max-h-[40vh] overflow-y-auto pr-2">
@@ -77,7 +92,7 @@ export default function CartModal({ isOpen, onClose }) {
                                             alt={item.name}
                                             width={50}
                                             height={50}
-                                            className="rounded-lg object-cover" // Використовуємо className замість objectFit
+                                            className="rounded-lg object-cover"
                                         />
                                     </div>
                                     {/* cartItemDetails */}
@@ -131,13 +146,13 @@ export default function CartModal({ isOpen, onClose }) {
                             <span>Разом:</span>
                             <span>{cartTotal.toFixed(2)} грн</span>
                         </div>
-                        {/* modalButton primary + checkoutButton */}
+                        {/* Кнопка "Замовити" (зелена) */}
                         <button
-                            className="w-full px-4 py-3 rounded-lg font-medium text-base bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                            onClick={handleCheckout}
+                            className="w-full px-4 py-3 rounded-lg font-medium text-base bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                            onClick={handlePlaceOrder}
                             disabled={isLoading}
                         >
-                            {isLoading ? 'Створення платежу...' : 'Оформити замовлення (Mono)'}
+                            {isLoading ? 'Оформлення...' : 'Замовити'}
                         </button>
                     </div>
                 )}

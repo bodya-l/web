@@ -3,7 +3,7 @@
 
 import { signOut, useSession } from 'next-auth/react';
 import Image from 'next/image';
-import { MapPin, Award, Coffee, Map, X } from 'lucide-react';
+import { MapPin, Award, Coffee, Map, X, LogOut } from 'lucide-react'; // Додано LogOut
 
 export default function ProfileModal({ isOpen, onClose }) {
     const { data: session } = useSession();
@@ -12,9 +12,16 @@ export default function ProfileModal({ isOpen, onClose }) {
         return null;
     }
 
-    const handleSignOut = () => {
-        signOut({ callbackUrl: '/login' });
+    // ▼▼▼ ВИПРАВЛЕННЯ КЕШУВАННЯ GOOGLE ▼▼▼
+    const handleSignOut = async () => {
+        // 1. Очищуємо локальну сесію NextAuth (без автоматичного перенаправлення)
+        await signOut({ redirect: false }); 
+        
+        // 2. Примусове перенаправлення на сторінку входу.
+        // Це скидає стан і дозволяє користувачу вибрати інший Google-акаунт.
+        window.location.href = '/login'; 
     };
+    // ▲▲▲ ▲▲▲ ▲▲▲
 
     return (
         // profileOverlay
@@ -36,7 +43,7 @@ export default function ProfileModal({ isOpen, onClose }) {
                                 alt="Avatar" 
                                 width={50} 
                                 height={50} 
-                                className="rounded-full" // Використовуємо className
+                                className="rounded-full object-cover" 
                             />
                         ) : (
                             <span>{session?.user?.name?.charAt(0) || session?.user?.email?.charAt(0) || 'A'}</span>
@@ -74,7 +81,7 @@ export default function ProfileModal({ isOpen, onClose }) {
                     </div>
 
                     {/* updatedMyItemsButton */}
-                    <button className="block w-full p-3 rounded-xl bg-[#1db954] text-white text-base font-bold cursor-pointer mb-6 transition hover:bg-[#1aa34a] flex-shrink-0">
+                    <button className="block w-full p-3 rounded-xl bg-green-600 text-white text-base font-bold cursor-pointer mb-6 transition hover:bg-green-700 flex-shrink-0">
                         My Items
                     </button>
 
@@ -101,11 +108,11 @@ export default function ProfileModal({ isOpen, onClose }) {
                 </div> 
 
                 {/* Кнопка "Вийти" (поза блоком прокрутки) */}
-                {/* modalButton secondary (з відступом, як у CSS) */}
                 <button
                     onClick={handleSignOut}
-                    className="px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 m-6 mt-0 flex-shrink-0 w-[calc(100%-3rem)] self-center"
+                    className="px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 m-6 mt-0 flex-shrink-0 w-[calc(100%-3rem)] self-center flex items-center justify-center gap-2"
                 >
+                    <LogOut size={18} />
                     Вийти
                 </button>
             </div>

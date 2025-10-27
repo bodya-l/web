@@ -17,29 +17,27 @@ enum Role {
 
 // --- ОНОВЛЕНА Модель Користувача ---
 model User {
-  id            Int      @id @default(autoincrement())
-  name          String?  // Google надасть ім'я
-  email         String?  @unique // Email може бути null доки не верифіковано
-  emailVerified DateTime?
-  image         String?  // Google надасть фото профілю
-  password      String?  // Пароль стає опціональним (для Google входу він не потрібен)
+  id              Int      @id @default(autoincrement())
+  name            String?
+  email           String?  @unique
+  emailVerified   DateTime?
+  image           String?
+  password        String?
 
-  role      Role     @default(CUSTOMER)
-  level     Int      @default(1)
-  progress  Int      @default(0)
+  role            Role     @default(CUSTOMER)
+  level           Int      @default(1)
+  progress        Int      @default(0)
 
-  // Зв'язки NextAuth
-  accounts Account[]
-  sessions Session[]
+  accounts        Account[]
+  sessions        Session[]
 
-  // Ваші зв'язки
-  restaurants Restaurant[]
-  orders      Order[]
+  restaurants     Restaurant[]
+  orders          Order[]
 }
 
-// --- НОВІ МОДЕЛІ ДЛЯ NEXT-AUTH ---
+// --- МОДЕЛІ NEXT-AUTH ---
 model Account {
-  id                 Int       @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   userId             Int
   type               String
   provider           String
@@ -73,7 +71,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// --- Ваші існуючі моделі (без змін) ---
+// --- МОДЕЛІ РЕСТОРАНІВ ТА МЕНЮ ---
 model Restaurant {
   id          Int      @id @default(autoincrement())
   name        String
@@ -86,7 +84,7 @@ model Restaurant {
 }
 
 model Category {
-  id           Int     @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   name         String
   description  String?
   restaurantId Int
@@ -95,16 +93,36 @@ model Category {
 }
 
 model Dish {
-  id          Int     @id @default(autoincrement())
-  name        String
-  description String?
-  price       Float
-  calories    Int?
-  imageUrl    String?
-  categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id])
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?
+  price         Float
+  calories      Int?
+  imageUrl      String?
+  categoryId    Int
+  category      Category @relation(fields: [categoryId], references: [id])
+  
+  // ▼ НОВИЙ ЗВ'ЯЗОК: Страва може бути в багатьох позиціях замовлення ▼
+  orderItems    OrderItem[] 
 }
 
+
+// --- ДОДАНО: ПРОМІЖНА МОДЕЛЬ OrderItem ---
+// Зберігає кількість та ціну на момент покупки.
+model OrderItem {
+    id              Int      @id @default(autoincrement())
+    orderId         Int
+    dishId          Int
+    quantity        Int      // Кількість замовлених страв
+    priceAtPurchase Float    // Фіксована ціна на момент замовлення
+
+    // Зв'язки
+    order           Order    @relation(fields: [orderId], references: [id])
+    dish            Dish     @relation(fields: [dishId], references: [id])
+}
+
+
+// --- ОНОВЛЕНО: МОДЕЛЬ ЗАМОВЛЕННЯ ---
 model Order {
   id           Int      @id @default(autoincrement())
   createdAt    DateTime @default(now())
@@ -113,4 +131,9 @@ model Order {
   user         User     @relation(fields: [userId], references: [id])
   restaurantId Int
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  status       String   @default("PENDING")
+  
+  // ▼ НОВИЙ ЗВ'ЯЗОК: Замовлення має багато позицій ▼
+  items        OrderItem[]
 }

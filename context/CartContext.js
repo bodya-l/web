@@ -13,19 +13,20 @@ export const CartProvider = ({ children }) => {
     // Функція додавання товару в кошик
     const addToCart = (dish) => {
         setCartItems((prevItems) => {
-            // Перевіряємо, чи товар вже є в кошику
             const existingItem = prevItems.find((item) => item.id === dish.id);
             if (existingItem) {
-                // Якщо є - збільшуємо кількість
                 return prevItems.map((item) =>
                     item.id === dish.id ? { ...item, quantity: item.quantity + 1 } : item
                 );
             } else {
-                // Якщо немає - додаємо з кількістю 1
-                return [...prevItems, { ...dish, quantity: 1 }];
+                // При додаванні товару припускаємо, що він має ID, ім'я, ціну та URL
+                return [...prevItems, { 
+                    ...dish, 
+                    quantity: 1,
+                    // Переконайтеся, що об'єкт dish має поля id, price, name, imageUrl
+                }];
             }
         });
-        console.log('Current cart:', cartItems); // Для відладки
     };
 
     // Функція видалення товару
@@ -35,7 +36,6 @@ export const CartProvider = ({ children }) => {
 
     // Функція оновлення кількості
     const updateQuantity = (dishId, quantity) => {
-        // Переконуємось, що кількість не менше 1
         const newQuantity = Math.max(1, quantity);
         setCartItems((prevItems) =>
             prevItems.map((item) =>
@@ -63,10 +63,14 @@ export const CartProvider = ({ children }) => {
 };
 
 // Хук для зручного доступу до контексту
-export const useCart = () => {
+export const useCart = () => { // ⬅️ Це коректний Named Export
     const context = useContext(CartContext);
     if (context === undefined) {
         throw new Error('useCart must be used within a CartProvider');
     }
     return context;
 };
+
+// ❗️ ВАЖЛИВО: Перевірте, чи всі файли, які використовують useCart, 
+// імпортують його з ФІГУРНИМИ ДУЖКАМИ:
+// import { useCart } from '@/context/CartContext';

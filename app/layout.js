@@ -2,7 +2,7 @@
 import './globals.css';
 import Providers from './providers';
 // ▼▼▼ ВИПРАВЛЕНО ШЛЯХ: Використовуємо абсолютний шлях для CartProvider ▼▼▼
-import { CartProvider } from '@/context/CartContext'; 
+import { CartProvider } from '@/context/CartContext';
 // ▲▲▲ ▲▲▲ ▲▲▲
 
 export const metadata = {

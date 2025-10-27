@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react'; // ⬅️ Додано signOut
 import Link from 'next/link';
 import Image from 'next/image';
-import { Settings, Trash2, User, Plus } from 'lucide-react'; // Додано іконки
+import { Settings, Trash2, User, Plus, LogOut } from 'lucide-react'; // ⬅️ Додано LogOut
 
 export default function ManageRestaurantsPage() {
     const [restaurants, setRestaurants] = useState([]);
@@ -28,9 +28,14 @@ export default function ManageRestaurantsPage() {
                 });
         }
     }, [status]);
+    
+    // Функція виходу з системи
+    const handleSignOut = () => {
+        // Вихід, з перенаправленням на сторінку входу
+        signOut({ callbackUrl: '/login' });
+    };
 
     if (status === 'loading') {
-        // pageContainer + menuPageContainer + loadingText
         return (
             <main className="w-full min-h-screen flex flex-col bg-white justify-start">
                 <div className="p-8 text-center text-gray-500">Завантаження...</div>
@@ -39,7 +44,6 @@ export default function ManageRestaurantsPage() {
     }
 
     if (status === 'unauthenticated') {
-        // pageContainer + menuPageContainer + loadingText
         return (
             <main className="w-full min-h-screen flex flex-col bg-white justify-start">
                 <div className="p-8 text-center text-gray-500">Доступ заборонено.</div>
@@ -49,21 +53,35 @@ export default function ManageRestaurantsPage() {
 
 
     return (
-        // pageContainer + menuPageContainer
         <main className="w-full min-h-screen flex flex-col bg-white justify-start">
-            {/* manageContentWrapper */}
             <div className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-6 sm:py-8">
+                
                 {/* manageHeader */}
                 <header className="flex justify-between items-center mb-8 pb-6 border-b border-gray-200 flex-wrap gap-4">
+                    
                     {/* manageHeaderTitle */}
                     <div className="manageHeaderTitle">
                         <h1 className="m-0 text-sm font-semibold tracking-wider text-gray-600 uppercase">MANAGER MODE</h1>
                     </div>
-                    {/* manageHeaderUser */}
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                        {/* profileIcon */}
-                        <User size={16} className="text-gray-500" />
-                        <span>{session?.user?.email}</span>
+                    
+                    {/* manageHeaderUser (Об'єднаний блок користувача та виходу) */}
+                    <div className="flex items-center gap-4">
+                        
+                        {/* Інформація про користувача */}
+                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <User size={16} className="text-gray-500" />
+                            <span>{session?.user?.email}</span>
+                        </div>
+                        
+                        {/* КНОПКА ВИХОДУ */}
+                        <button
+                            onClick={handleSignOut}
+                            className="text-gray-500 hover:text-red-600 transition flex items-center gap-1 text-sm font-medium"
+                            title="Вийти"
+                        >
+                            <LogOut size={18} />
+                            <span className="hidden sm:inline">Вийти</span>
+                        </button>
                     </div>
                 </header>
 
@@ -110,26 +128,36 @@ export default function ManageRestaurantsPage() {
                                         </div>
                                     </div>
                                     {/* manageRestaurantActions */}
-                                    <div className="flex items-center gap-4 flex-shrink-0 mt-4 pt-4 border-t border-gray-100 justify-between md:border-t-0 md:pt-0 md:mt-0 md:justify-start">
-                                        {/* actionIcon */}
+                                    <div className="flex items-center gap-4 flex-shrink-0 mt-4 pt-4 border-t border-gray-100 justify-between md:border-t-0 md:pt-0 md:mt-0 md:justify-end">
+                                        {/* actionIcon (Налаштування) */}
                                         <button className="text-xl cursor-pointer text-gray-500 transition hover:text-gray-800">
                                             <Settings size={20} />
                                         </button>
+                                        
+                                        {/* actionIcon (Видалення) */}
                                         <button className="text-xl cursor-pointer text-gray-500 transition hover:text-red-500">
                                             <Trash2 size={20} />
                                         </button>
-                                        {/* manageMenuButton */}
+                                        
+                                        {/* КНОПКА KITCHEN */}
+                                        <Link
+                                            href={`/dashboard/${restaurant.id}`}
+                                            className="bg-gray-100 text-indigo-600 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer no-underline whitespace-nowrap transition hover:bg-gray-200 ml-auto md:ml-0"
+                                        >
+                                            KITCHEN
+                                        </Link>
+                                        
+                                        {/* MANAGE MENU */}
                                         <Link
                                             href={`/manage/restaurants/${restaurant.id}/categories`}
-                                            className="bg-gray-100 text-indigo-600 rounded-lg px-4 py-2 text-sm font-medium cursor-pointer no-underline whitespace-nowrap transition hover:bg-gray-200"
+                                            className="bg-gray-100 text-indigo-600 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer no-underline whitespace-nowrap transition hover:bg-gray-200"
                                         >
-                                            MENAGE MENU
+                                            MANAGE MENU
                                         </Link>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            // noDataText
                             <p className="text-gray-500 text-center p-8">You haven't added any restaurants yet.</p>
                         )}
                     </div>
