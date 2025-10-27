@@ -4,6 +4,28 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth.config';
 
+// ▼▼▼ ВИПРАВЛЕННЯ: Явно визначаємо типи, які повертає Prisma ▼▼▼
+
+// Тип для елемента 'items', який повертає select
+type ItemFromDB = {
+    quantity: number;
+    priceAtPurchase: number;
+    dish: { name: string };
+};
+
+// Тип для даних, які повертає `prisma.order.findMany`
+type OrderFromDB = {
+    id: number;
+    createdAt: Date;
+    totalPrice: number;
+    status: string;
+    restaurantId: number;
+    items: ItemFromDB[];
+};
+
+// ▲▲▲ ▲▲▲ ▲▲▲
+
+
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
@@ -13,15 +35,14 @@ export async function GET() {
         }
         
         const userIdRaw = session.user.id;
-        // Безпечне парсування ID з JWT
         const numericUserId = typeof userIdRaw === 'string' ? parseInt(userIdRaw) : (userIdRaw as number); 
         
         if (isNaN(numericUserId) || !numericUserId) {
              return NextResponse.json({ message: 'Помилка ID користувача' }, { status: 400 });
         }
 
-        // ▼▼▼ ЧИТАННЯ: Order, OrderItem та Dish.name ▼▼▼
-        const orders = await prisma.order.findMany({
+        // 1. Отримуємо замовлення
+        const orders: OrderFromDB[] = await prisma.order.findMany({
             where: { userId: numericUserId },
             orderBy: { createdAt: 'desc' },
             select: { 
@@ -30,31 +51,28 @@ export async function GET() {
                 totalPrice: true,
                 status: true,
                 restaurantId: true,
-                // ⬅️ Використовуємо include для OrderItem та Dish
                 items: {
                     select: {
                         quantity: true,
                         priceAtPurchase: true,
-                        // Отримуємо назву страви через зв'язок Dish
                         dish: { select: { name: true } } 
                     }
                 }
             }
         });
         
-        // Форматування даних для фронтенду
-        const ordersWithDetails = orders.map(order => ({
+        // 2. Форматуємо дані для фронтенду
+        // ▼▼▼ ВИПРАВЛЕННЯ: Додано явні типи для 'order' та 'item' ▼▼▼
+        const ordersWithDetails = orders.map((order: OrderFromDB) => ({
             ...order,
-            // Перетворюємо items для зручності відображення
-            items: order.items.map(item => ({
+            items: order.items.map((item: ItemFromDB) => ({
                 name: item.dish.name,
                 quantity: item.quantity,
-                price: item.priceAtPurchase // Фіксована ціна
+                price: item.priceAtPurchase
             })),
         }));
         // ▲▲▲ ▲▲▲ ▲▲▲
 
-        // Встановлюємо заголовок для запобігання кешуванню на стороні сервера
         return NextResponse.json(ordersWithDetails, {
              headers: { 'Cache-Control': 'no-store, max-age=0' }
         });

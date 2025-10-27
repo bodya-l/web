@@ -13,17 +13,24 @@ import { useSession } from 'next-auth/react';
 import { ArrowLeft, ShoppingCart, User, Clock } from 'lucide-react';
 import Pusher from 'pusher-js'; 
 
+// ⬅️ Об'єкт категорій для побудови навігації
+const SIDE_NAV_CATEGORIES = {
+    "Кухня": ["Гарячі страви", "Супи", "Салати", "Десерти"],
+    "Напої": ["Алкогольні напої", "Безалкогольні напої", "Кава", "Чай"],
+    "Піца": ["Піца"],
+};
+
 export default function MenuSecondaryPage() {
     const [dishes, setDishes] = useState([]);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const [isOrdersOpen, setIsOrdersOpen] = useState(false); 
+    const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+    
+    const [openDropdown, setOpenDropdown] = useState(null); 
 
     const searchParams = useSearchParams();
-    const category = searchParams.get('category');
-    // ⬅️ Отримуємо restaurantId з URL
-    // Примітка: ID ресторану має бути переданий у URL, наприклад, /menu-secondary?id=123&category=...
-    const restaurantId = searchParams.get('id') || '1'; // Використовуємо '1' як заглушку, якщо ID відсутній
+    const currentCategory = searchParams.get('category'); 
+    const restaurantId = searchParams.get('id') || '1'; 
 
     const { addToCart, cartCount } = useCart();
     const { data: session, status } = useSession();
@@ -32,20 +39,19 @@ export default function MenuSecondaryPage() {
 
     // 1. Завантаження даних
     useEffect(() => {
-        if (category) {
-            fetch(`/api/dishes?category=${category}`)
+        if (currentCategory) { 
+            fetch(`/api/dishes?category=${currentCategory}`)
                 .then((res) => res.json())
                 .then((data) => {
                     setDishes(data);
                 });
         }
-    }, [category]);
+    }, [currentCategory]); 
 
     // 2. Логіка підписки на Pusher (Сповіщення про статус)
     useEffect(() => {
         if (status !== 'authenticated' || !userId) return;
 
-        // Виправлення: Перевірка змінних оточення
         const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
         const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
         
@@ -73,6 +79,17 @@ export default function MenuSecondaryPage() {
         };
     }, [userId, status]); 
 
+    // ⬅️ Логіка для визначення активного dropdown при завантаженні сторінки
+    useEffect(() => {
+        const parentCategory = Object.entries(SIDE_NAV_CATEGORIES).find(([_, subcats]) => 
+            subcats.includes(currentCategory)
+        )?.[0];
+        
+        if (parentCategory) {
+            setOpenDropdown(parentCategory);
+        }
+    }, [currentCategory]);
+
 
     return (
         <>
@@ -84,7 +101,6 @@ export default function MenuSecondaryPage() {
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
             />
-            {/* ⬅️ Додаємо модалку замовлень та ПЕРЕДАЄМО restaurantId */}
             <MyOrdersModal
                 isOpen={isOrdersOpen}
                 onClose={() => setIsOrdersOpen(false)}
@@ -97,12 +113,12 @@ export default function MenuSecondaryPage() {
                     
                     {/* secondaryMenuHeaderNew */}
                     <header className="flex items-center gap-4 sm:gap-6 px-4 sm:px-6 lg:px-10 py-4 sm:py-5 border-b border-gray-100 flex-shrink-0 w-full max-w-7xl mx-auto">
-                        <Link href="/menu" className="text-2xl sm:text-3xl no-underline text-gray-800 font-bold">
+                        <Link href={`/menu/${restaurantId}`} className="text-2xl sm:text-3xl no-underline text-gray-800 font-bold">
                             <ArrowLeft size={24} strokeWidth={2.5} />
                         </Link>
                         <div className="restaurantInfo">
-                            <h3 className="m-0 text-base sm:text-lg font-semibold truncate">NAZVA</h3>
-                            <p className="m-0 text-sm text-gray-500 truncate">description of the restaurant</p>
+                            <h3>NAZVA</h3>
+                            <p>description of the restaurant</p>
                         </div>
                         {/* headerIcons */}
                         <div className="flex items-center gap-4 sm:gap-6 ml-auto">
@@ -134,41 +150,74 @@ export default function MenuSecondaryPage() {
 
                     {/* secondaryMenuBody */}
                     <div className="flex flex-grow overflow-hidden w-full max-w-7xl mx-auto">
-                        <nav className="flex flex-col p-4 sm:p-5 border-r border-gray-100 gap-2 flex-shrink-0 w-[150px] sm:w-[220px] overflow-y-auto">
+                        
+                        {/* ⬅️ Бічна навігація (SideNav) - РОЗСУВНИЙ ДИЗАЙН */}
+                        <nav 
+                            className="flex flex-col p-4 sm:p-5 border-r border-gray-100 gap-0 flex-shrink-0 w-[150px] sm:w-[220px] overflow-y-auto"
+                        >
                             
-                            {/* --- КУХНЯ --- */}
-                            <div className="relative group no-underline text-gray-800 px-4 py-3 rounded-lg text-left font-medium text-sm sm:text-base transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:bg-gray-100">
-                                <span>Кухня</span>
-                                <ul className="hidden group-hover:block list-none p-2 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg absolute z-20 w-full left-0 top-full">
-                                    <li><Link href="/menu-secondary?category=Гарячі страви" className="block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Гарячі страви</Link></li>
-                                    <li><Link href="/menu-secondary?category=Супи" className="sideNavItem-sub block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Супи</Link></li>
-                                    <li><Link href="/menu-secondary?category=Салати" className="sideNavItem-sub block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Салати</Link></li>
-                                    <li><Link href="/menu-secondary?category=Десерти" className="sideNavItem-sub block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Десерти</Link></li>
-                                </ul>
-                            </div>
-                            
-                            {/* --- НАПОЇ --- */}
-                            <div className="relative group no-underline text-gray-800 px-4 py-3 rounded-lg text-left font-medium text-sm sm:text-base transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:bg-gray-100">
-                                <span>Напої</span>
-                                <ul className="hidden group-hover:block list-none p-2 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg absolute z-20 w-full left-0 top-full">
-                                    <li><Link href="/menu-secondary?category=Алкогольні напої" className="block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Алкогольні напої</Link></li>
-                                    <li><Link href="/menu-secondary?category=Безалкогольні напої" className="block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Безалкогольні напої</Link></li>
-                                    <li><Link href="/menu-secondary?category=Кава" className="block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Кава</Link></li>
-                                    <li><Link href="/menu-secondary?category=Чай" className="block no-underline text-gray-800 px-3 py-2 rounded-md text-left font-medium text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-200">Чай</Link></li>
-                                </ul>
-                            </div>
-                            
-                            {/* --- ПІЦА --- */}
-                            <Link href="/menu-secondary?category=Піца" className="no-underline text-gray-800 px-4 py-3 rounded-lg text-left font-medium text-sm sm:text-base transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-100">
+                            {Object.entries(SIDE_NAV_CATEGORIES).map(([mainTitle, subcategories]) => {
+                                const isDropdownOpen = openDropdown === mainTitle;
+                                const isMainCategoryActive = subcategories.includes(currentCategory);
+                                return (
+                                    <div key={mainTitle} className="w-full">
+                                        
+                                        {/* Основна назва категорії (Батьківський елемент) */}
+                                        <span 
+                                            onClick={() => setOpenDropdown(isDropdownOpen ? null : mainTitle)} // ⬅️ КЛІК ДЛЯ РОЗКРИТТЯ/ЗАКРИТТЯ
+                                            className={`no-underline px-4 py-3 text-left font-medium text-sm sm:text-base transition-colors duration-200 block cursor-pointer rounded-lg
+                                                ${isDropdownOpen || isMainCategoryActive 
+                                                    ? 'bg-gray-200 text-gray-900 font-semibold' // ⬅️ Активний стиль (Сірий)
+                                                    : 'text-gray-800 hover:bg-gray-100'}`
+                                            }
+                                        >
+                                            {mainTitle}
+                                        </span>
+                                        
+                                        {/* Випадаюче меню (РОЗСУВНИЙ СПИСОК) */}
+                                        <ul 
+                                            className={`list-none p-0 overflow-hidden transition-all duration-300 ease-in-out 
+                                                ${isDropdownOpen || isMainCategoryActive ? 'max-h-96 opacity-100 pb-2' : 'max-h-0 opacity-0'}`
+                                            }
+                                        >
+                                            {subcategories.map((subCategory) => {
+                                                const isActive = subCategory === currentCategory; 
+                                                return (
+                                                    <li key={subCategory}>
+                                                        <Link 
+                                                            href={`/menu-secondary?id=${restaurantId}&category=${subCategory}`} 
+                                                            className={`block no-underline pl-8 pr-3 py-2 text-left text-sm transition-colors duration-200 
+                                                                ${isActive 
+                                                                    ? 'bg-green-100 text-green-700 font-semibold rounded-md' // ⬅️ ЗЕЛЕНЕ ВИДІЛЕННЯ
+                                                                    : 'text-gray-700 hover:bg-gray-50'}`
+                                                            }
+                                                        >
+                                                            {subCategory}
+                                                        </Link>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+
+                            {/* --- ПІЦА (Звичайне посилання, без dropdown) --- */}
+                            <Link 
+                                href={`/menu-secondary?id=${restaurantId}&category=Піца`} 
+                                className={`no-underline px-4 py-3 rounded-lg text-left font-medium text-sm sm:text-base transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis 
+                                    ${'Піца' === currentCategory ? 'bg-green-100 text-green-700 font-semibold' : 'text-gray-800 hover:bg-gray-100'}`}
+                            >
                                 Піца
                             </Link>
+
                         </nav>
 
                         {/* dishListNew (Список страв) */}
-                        <div className="flex-grow p-4 sm:p-5 lg:px-10 overflow-y-auto text-left">
+                        <div className="dishListNew flex-grow p-4 sm:p-5 lg:px-10 overflow-y-auto text-left">
                             <div className="dishListHeader flex justify-between items-center mb-6 flex-wrap gap-2">
-                                <h3 className="m-0 text-lg sm:text-xl font-semibold">{category || 'Страви'}</h3>
-                                <div className="dishProgress flex items-center gap-2 flex-shrink-0">
+                                <h3>{currentCategory || 'Страви'}</h3>
+                                <div className="dishProgress">
                                     <span className="text-sm text-gray-500 font-medium">lvl. 23</span>
                                     <div className="w-20 sm:w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                                         <div className="h-full bg-green-500 rounded-full" style={{ width: '83%' }}></div>

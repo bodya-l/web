@@ -6,11 +6,37 @@ import { authOptions } from '@/lib/auth.config';
 
 // МАПА ПРІОРИТЕТІВ: Чим менше число, тим вище в списку
 const STATUS_PRIORITY = {
-    'READY': 1,       // На видачу (найвищий пріоритет)
-    'PREPARING': 2,   // Готування
-    'PENDING': 3,     // Приймання
-    'COMPLETED': 4,   // Видані (найнижчий пріоритет)
+    'READY': 1,
+    'PREPARING': 2,
+    'PENDING': 3,
+    'COMPLETED': 4,
 };
+
+// ▼▼▼ ВИПРАВЛЕННЯ: Явно визначаємо типи, які повертає Prisma ▼▼▼
+
+// Тип для даних, які повертає `prisma.order.findMany`
+type OrderFromDB = {
+    id: number;
+    createdAt: Date;
+    totalPrice: number;
+    status: string;
+    userId: number;
+    user: { name: string | null };
+    items: {
+        quantity: number;
+        priceAtPurchase: number;
+        dish: { name: string };
+    }[];
+};
+
+// Тип для елемента 'items'
+type ItemFromDB = {
+    quantity: number;
+    priceAtPurchase: number;
+    dish: { name: string };
+};
+
+// ▲▲▲ ▲▲▲ ▲▲▲
 
 export async function GET(
     request: Request,
@@ -25,7 +51,6 @@ export async function GET(
         
         const numericRestaurantId = parseInt(params.restaurantId);
         
-        // Додаткова перевірка прав
         const isOwner = await prisma.restaurant.count({
             where: { id: numericRestaurantId, ownerId: session.user.id as number }
         });
@@ -35,9 +60,8 @@ export async function GET(
         }
         
         // 1. Отримуємо замовлення
-        const orders = await prisma.order.findMany({
+        const orders: OrderFromDB[] = await prisma.order.findMany({
             where: { restaurantId: numericRestaurantId },
-            // Сортуємо лише за часом, щоб мати порядок черги перед фінальним сортуванням
             orderBy: { createdAt: 'asc' }, 
             select: { 
                 id: true,
@@ -57,25 +81,26 @@ export async function GET(
         });
         
         // 2. Форматування, обчислення пріоритету
-        const ordersWithDetails = orders.map(order => ({
+        // ▼▼▼ ВИПРАВЛЕННЯ: Додано тип 'OrderFromDB' ▼▼▼
+        const ordersWithDetails = orders.map((order: OrderFromDB) => ({
             ...order,
-            // Додаємо поле priority для сортування
             priority: STATUS_PRIORITY[order.status as keyof typeof STATUS_PRIORITY] || 99, 
             userName: order.user.name || 'Анонім',
-            items: order.items.map(item => ({
+            // ▼▼▼ ВИПРАВЛЕННЯ: Додано тип 'ItemFromDB' ▼▼▼
+            items: order.items.map((item: ItemFromDB) => ({
                 name: item.dish.name,
                 quantity: item.quantity,
                 price: item.priceAtPurchase
             })),
         }));
+        // ▲▲▲ ▲▲▲ ▲▲▲
+
 
         // 3. ФІНАЛЬНЕ СОРТУВАННЯ НА БЕКЕНДІ (JavaScript)
         ordersWithDetails.sort((a, b) => {
-            // A. Сортування за статусом (пріоритет)
             if (a.priority !== b.priority) {
-                return a.priority - b.priority; // ASC: 1, 2, 3...
+                return a.priority - b.priority;
             }
-            // B. Сортування за часом (від найстарішого до новішого - черга)
             return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         });
 

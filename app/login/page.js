@@ -65,7 +65,7 @@ export default function LoginPage() {
         if (session?.user?.role === 'OWNER') {
              router.replace('/manage/restaurants');
         } else {
-             router.replace('/menu');
+             router.replace('/menu/1');
         }
         return null;
     }

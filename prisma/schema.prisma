@@ -35,7 +35,7 @@ model User {
   orders          Order[]
 }
 
-// --- МОДЕЛІ NEXT-AUTH ---
+// --- МОДЕЛІ NEXT-AUTH (З onDelete: Cascade) ---
 model Account {
   id                 Int      @id @default(autoincrement())
   userId             Int
@@ -71,16 +71,24 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// --- МОДЕЛІ РЕСТОРАНІВ ТА МЕНЮ ---
+// --- МОДЕЛІ РЕСТОРАНІВ ТА МЕНЮ (З Stars, Logo та Banner) ---
 model Restaurant {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  imageUrl    String?
+  bannerUrl   String?
+  logoUrl     String?
+  address     String?
+  
+  // ⬅️ ДОДАНО: Рейтинг зірок
+  stars       Float    @default(5.0) 
+  
   ownerId     Int
   owner       User     @relation(fields: [ownerId], references: [id])
   categories  Category[]
-  orders      Order[]
+  
+  // ⬅️ ВИПРАВЛЕНО: Явний зворотний зв'язок
+  orders      Order[] @relation("OrderToRestaurant")
 }
 
 model Category {
@@ -102,27 +110,25 @@ model Dish {
   categoryId    Int
   category      Category @relation(fields: [categoryId], references: [id])
   
-  // ▼ НОВИЙ ЗВ'ЯЗОК: Страва може бути в багатьох позиціях замовлення ▼
   orderItems    OrderItem[] 
 }
 
 
-// --- ДОДАНО: ПРОМІЖНА МОДЕЛЬ OrderItem ---
-// Зберігає кількість та ціну на момент покупки.
+// --- ПРОМІЖНА МОДЕЛЬ OrderItem (З onDelete: Cascade) ---
 model OrderItem {
     id              Int      @id @default(autoincrement())
     orderId         Int
     dishId          Int
-    quantity        Int      // Кількість замовлених страв
-    priceAtPurchase Float    // Фіксована ціна на момент замовлення
+    quantity        Int
+    priceAtPurchase Float
 
-    // Зв'язки
-    order           Order    @relation(fields: [orderId], references: [id])
+    // ⬅️ КРИТИЧНО: ДОДАНО onDelete: Cascade
+    order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
     dish            Dish     @relation(fields: [dishId], references: [id])
 }
 
 
-// --- ОНОВЛЕНО: МОДЕЛЬ ЗАМОВЛЕННЯ ---
+// --- МОДЕЛЬ ЗАМОВЛЕННЯ ---
 model Order {
   id           Int      @id @default(autoincrement())
   createdAt    DateTime @default(now())
@@ -130,10 +136,11 @@ model Order {
   userId       Int
   user         User     @relation(fields: [userId], references: [id])
   restaurantId Int
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  // Явно називаємо зв'язок
+  restaurant   Restaurant @relation("OrderToRestaurant", fields: [restaurantId], references: [id])
 
   status       String   @default("PENDING")
   
-  // ▼ НОВИЙ ЗВ'ЯЗОК: Замовлення має багато позицій ▼
   items        OrderItem[]
 }

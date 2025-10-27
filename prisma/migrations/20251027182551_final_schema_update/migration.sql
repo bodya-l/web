@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Restaurant" ADD COLUMN     "stars" DOUBLE PRECISION NOT NULL DEFAULT 5.0;
