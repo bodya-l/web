@@ -41,7 +41,7 @@ async function createFullMenuForRestaurant(restaurantId) {
                 description: `Опис для страви ${i} в категорії ${category.name}`,
                 price: parseFloat((Math.random() * 300 + 50).toFixed(2)), // 50.00 - 350.00
                 calories: Math.floor(Math.random() * 500 + 100), // 100 - 600
-                imageUrl: '/images/placeholder.jpg', // Заглушка
+                imageUrl: '/images/dish.png', // Заглушка
                 categoryId: category.id,
             });
         }
@@ -84,7 +84,7 @@ async function main() {
     // 3.1. NAZVA
     const restaurant1 = await prisma.restaurant.create({
         data: {
-            name: 'NAZVA',
+            name: 'Flat5',
             description: 'A warm and welcoming place for coffee lovers',
             bannerUrl: 'https://cdn-media.choiceqr.com/prod-eat-flat5/aXyIeko-egYJPqB-XimVTlX.jpeg.webp',
             logoUrl: 'https://instagram.fiev13-1.fna.fbcdn.net/v/t51.2885-19/327769289_3007771502857486_8282099528614906863_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby42MzEuYzIifQ&_nc_ht=instagram.fiev13-1.fna.fbcdn.net&_nc_cat=110&_nc_oc=Q6cZ2QFcvi-HWTEUHg1H8XkDyB1D1TGvmxh9HrrDgnPJ-DNI3S2RGjXBtEhN8dY__K9RXJk&_nc_ohc=OZXgn3RuQ5sQ7kNvwE-3eaU&_nc_gid=JoCyTwrGiPW4WxJzR7lWag&edm=APoiHPcBAAAA&ccb=7-5&oh=00_Afd2c_UwlM-P7FhiAAT_arbhWDlE0NGmZbnooVwKcuXIZQ&oe=690589E3&_nc_sid=22de04',

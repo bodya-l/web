@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signIn, useSession } from 'next-auth/react';
-import { Mail, Lock, User, LogIn } from 'lucide-react'; // Імпорт іконок для естетики
+import { Mail, Lock, User, LogIn } from 'lucide-react'; 
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -14,7 +14,6 @@ export default function LoginPage() {
     const router = useRouter();
     const { data: session, status, update } = useSession(); 
 
-    // --- ОНОВЛЮЄМО ЛОГІН ЧЕРЕЗ EMAIL/ПАРОЛЬ ---
     const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
@@ -28,30 +27,27 @@ export default function LoginPage() {
         if (result.error) {
             setError(result.error);
         } else if (result.ok) {
-            // Вхід успішний
-            // Оновлюємо сесію, щоб отримати роль
-            // NOTE: Це може бути зайвим, якщо `signIn` вже повернув оновлену сесію 
-            // в залежності від конфігурації. Але залишаємо для надійності.
+
             const updatedSession = await update();
             const userRole = updatedSession?.user?.role || session?.user?.role;
             
             if (userRole === 'OWNER') {
                 router.push('/manage/restaurants'); 
             } else {
-                router.push('/menu');
+                router.push('/homepage');
             }
         }
     };
 
-    // --- ОНОВЛЮЄМО ЛОГІН ЧЕРЕЗ GOOGLE ---
+
     const handleGoogleSignIn = () => {
-        // Перенаправляємо на /auth/check-role для визначення ролі
+
         signIn('google', { callbackUrl: '/auth/check-role' });
     };
 
-    // Обробка стану завантаження сесії
+
     if (status === 'loading') {
-        // loadingText
+
         return (
             <main className="w-full min-h-screen flex flex-col justify-center items-center bg-gray-100">
                 <div className="p-8 text-center text-gray-500">Завантаження сесії...</div>
@@ -59,9 +55,9 @@ export default function LoginPage() {
         );
     }
     
-    // Якщо користувач вже аутентифікований, перенаправляємо його (запобігає циклу)
+
     if (status === 'authenticated') {
-        // Це має обробити /auth/check-role, але додаємо на випадок прямого входу
+
         if (session?.user?.role === 'OWNER') {
              router.replace('/manage/restaurants');
         } else {
@@ -72,7 +68,7 @@ export default function LoginPage() {
 
 
     return (
-        // pageContainer + loginPageContainer
+
         <main className="w-full min-h-screen flex flex-col justify-center items-center p-4 bg-gray-100">
 
             {/* loginContentWrapper */}

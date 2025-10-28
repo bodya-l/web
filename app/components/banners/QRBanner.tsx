@@ -29,7 +29,7 @@ const QRBanner: React.FC = () => (
       {/* Права частина: Зображення телефону */}
       <div className="w-full max-w-sm lg:w-1/3 flex justify-center lg:justify-end">
         <img 
-          src="https://expirenza.com/resources/expirenza/img/expirenza/expz-app-line@2x.webp" // ⬅️ Вам потрібно додати це зображення у public/images
+          src="/images/qrcode.png" 
           alt="Демонстрація меню на телефоні з QR-кодом" 
           className="max-h-64 object-contain"
         />

@@ -1,11 +1,11 @@
 // app/home/page.tsx
 
 import React from 'react';
-import BreadcrumbHeader from '@/components/Header';
+import BreadcrumbHeader from '@/app/components/HeaderCopy';
 import QRBanner from '@/components/banners/QRBanner';
 import AboutUsSection from '@/components/banners/AboutUsSection';
 import HowItWorksBanner from '@/components/banners/HowItWorksBanner';
-import Footer from '@/components/Footer'; // Ваш компонент футера
+import Footer from '@/components/Footer'; 
 
 const HomePage= () => {
   return (
@@ -18,9 +18,9 @@ const HomePage= () => {
       
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         
-        {/* Хлібні крихти та опис тут не потрібні, оскільки вони є в хедері */}
+        {}
 
-        {/* Контейнери зібрані в потрібному порядку */}
+        {}
         <QRBanner />
         <AboutUsSection />
         <HowItWorksBanner />

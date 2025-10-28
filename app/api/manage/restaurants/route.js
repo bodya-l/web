@@ -1,16 +1,18 @@
 // app/api/manage/restaurants/route.js
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth.config'; // Використовуємо абсолютний шлях
+import { authOptions } from '@/lib/auth.config'; 
 import prisma from '@/lib/prisma';
 
-// Визначаємо очікувані типи для даних за допомогою JSDoc
+// 💡 ПРИМІТКА: Ми видалили помилковий TypeScript-код (type RouteParams = ...)
+// бо це .js файл. Ми використовуємо JSDoc для типів.
+
 /**
- * @typedef {object} RestaurantCreateData
- * @property {string} name
- * @property {string} [description]
- * @property {string} [imageUrl]
- */
+* @typedef {object} RestaurantCreateData
+* @property {string} name
+* @property {string} [description]
+* @property {string} [imageUrl]
+*/
 
 // Функція GET для отримання ресторанів поточного власника
 export async function GET() {
@@ -18,18 +20,21 @@ export async function GET() {
         const session = await getServerSession(authOptions);
 
         // 1. ПЕРЕВІРКА АВТОРИЗАЦІЇ
-        // У JS не можна використовувати ?.role, тому перевіряємо як JS-об'єкт
         if (!session?.user?.id || session.user.role !== 'OWNER') {
             return NextResponse.json({ message: 'Доступ заборонено. Необхідний статус ВЛАСНИКА.' }, { status: 403 });
         }
         
-        // 2. ОТРИМУЄМО РЕСТОРАНИ (ЗА ОДИН ЗАПИТ)
-        // ID власника вже доступний як число (встановлено в колбеках)
-        const ownerId = session.user.id; 
+        // 💡 2. ВИПРАВЛЕННЯ: Перетворюємо ID сесії (рядок) на ЧИСЛО
+        const ownerId = Number(session.user.id);
 
+        if (isNaN(ownerId)) {
+             return NextResponse.json({ message: 'Некоректний ID користувача' }, { status: 400 });
+        }
+
+        // 3. ОТРИМУЄМО РЕСТОРАНИ
         const restaurants = await prisma.restaurant.findMany({
             where: {
-                ownerId: ownerId, 
+                ownerId: ownerId, // Тепер ми передаємо число
             },
             orderBy: {
                 name: 'asc',
@@ -57,26 +62,33 @@ export async function POST(request) {
     try {
         const session = await getServerSession(authOptions);
 
-        // 1. ПЕРЕВІРКА АВТОРИЗАЦІЇ
         if (!session?.user?.id || session.user.role !== 'OWNER') {
             return NextResponse.json({ message: 'Доступ заборонено. Необхідний статус ВЛАСНИКА.' }, { status: 403 });
         }
         
-        const ownerId = session.user.id;
+        // 💡 4. ВИПРАВЛЕННЯ: Тут також перетворюємо ID на число
+        const ownerId = Number(session.user.id);
+        if (isNaN(ownerId)) {
+             return NextResponse.json({ message: 'Некоректний ID користувача' }, { status: 400 });
+        }
+
         /** @type {RestaurantCreateData} */
-        const data = await request.json(); 
+        const data = await request.json();
 
         if (!data.name) {
             return NextResponse.json({ message: 'Restaurant name is required' }, { status: 400 });
         }
 
-        // 2. СТВОРЕННЯ РЕСТОРАНУ
+        // 5. СТВОРЕННЯ РЕСТОРАНУ
         const newRestaurant = await prisma.restaurant.create({
             data: {
                 name: data.name,
                 description: data.description,
-                imageUrl: data.imageUrl,
-                ownerId: ownerId, 
+                // 'imageUrl' у вас в схемі немає, але є 'logoUrl' і 'bannerUrl'
+                // Я залишу як у вас, але перевірте, чи є 'imageUrl' у схемі Restaurant
+                // imageUrl: data.imageUrl, 
+                logoUrl: data.logoUrl, // Можливо, ви мали на увазі це?
+                ownerId: ownerId, // Передаємо число
             },
         });
 
@@ -84,7 +96,7 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Error creating restaurant:', error);
-        if (error?.code === 'P2002') { 
+        if (error?.code === 'P2002') { // Унікальне обмеження
             return NextResponse.json({ message: 'Restaurant with this name already exists' }, { status: 409 });
         }
         return NextResponse.json(
