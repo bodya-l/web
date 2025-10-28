@@ -6,13 +6,16 @@ import Pusher from 'pusher-js';
 import { useParams } from 'next/navigation';
 import { Utensils, Timer, Clock } from 'lucide-react'; 
 
-// Типи, що відповідають даним Pusher та БД
+// --- ТИПИ ---
+
+// Локальний тип, який використовує UI для відображення
 type ItemDetails = {
   name: string;
   quantity: number;
   price: number;
 }
 
+// Локальний тип замовлення для UI
 type Order = {
   id: number;
   createdAt: string;
@@ -20,8 +23,45 @@ type Order = {
   userName: string;
   items: ItemDetails[];
   status: 'PENDING' | 'PREPARING' | 'READY' | 'COMPLETED';
-  priority?: number; // Додано для сортування
 };
+
+// 💡 1. Тип даних, що надходять з API (при завантаженні історії)
+// (Припускаємо, що API повертає таку структуру з Prisma)
+type ApiOrderResponse = {
+    id: number;
+    createdAt: string;
+    totalPrice: number;
+    status: Order['status'];
+    user: {
+        name: string | null;
+    };
+    items: {
+        quantity: number;
+        priceAtPurchase: number;
+        dish: {
+            name: string;
+        };
+    }[];
+};
+
+// 💡 2. Тип даних, що надходять з PUSHER (з /api/create-order)
+type NewOrderPusherPayload = {
+    message: string;
+    order: {
+        id: number;
+        totalPrice: number;
+        status: 'PENDING';
+        createdAt: string;
+        items: {
+            name: string;
+            quantity: number;
+            priceAtPurchase: number;
+        }[];
+    };
+    userName: string;
+};
+
+// --- КОНСТАНТИ ТА ХЕЛПЕРИ ---
 
 const getStatusColor = (status: Order['status']) => {
   switch (status) {
@@ -32,7 +72,6 @@ const getStatusColor = (status: Order['status']) => {
   }
 };
 
-// МАПА ПРІОРИТЕТІВ (повторюємо, щоб UI знав логіку)
 const STATUS_PRIORITY = {
     'READY': 1,       
     'PREPARING': 2,   
@@ -40,18 +79,15 @@ const STATUS_PRIORITY = {
     'COMPLETED': 4,   
 };
 
-// ⬅️ ФУНКЦІЯ СОРТУВАННЯ
 const sortOrders = (orders: Order[]) => {
     return [...orders].sort((a, b) => {
         const priorityA = STATUS_PRIORITY[a.status];
         const priorityB = STATUS_PRIORITY[b.status];
         
-        // 1. Сортування за статусом (пріоритет)
         if (priorityA !== priorityB) {
-            return priorityA - priorityB; // ASC: 1, 2, 3...
+            return priorityA - priorityB;
         }
         
-        // 2. Сортування за часом (від найстарішого до новішого)
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 };
@@ -65,13 +101,13 @@ export default function RestaurantDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Завантаження історії замовлень з БД та налаштування Pusher
+  // 1. Завантаження історії та налаштування Pusher
   useEffect(() => {
     if (!restaurantId) return;
 
     const channelName = `restaurant-${restaurantId}`;
     
-    // --- A. Завантаження історії з БД (гарантує стійкість) ---
+    // --- A. Завантаження історії з БД ---
     const fetchInitialOrders = async () => {
         setIsLoading(true);
         setError(null);
@@ -85,8 +121,25 @@ export default function RestaurantDashboard() {
                 throw new Error(errData.message || 'Не вдалося завантажити історію замовлень.');
             }
 
-            const data: Order[] = await res.json();
-            setOrders(sortOrders(data)); // ⬅️ СОРТУЄМО ПРИ ЗАВАНТАЖЕННІ
+            // 💡 3. ОТРИМУЄМО "СИРІ" ДАНІ З API
+            const data: ApiOrderResponse[] = await res.json();
+            
+            // 💡 4. ТРАНСФОРМУЄМО ДАНІ У ЛОКАЛЬНИЙ ТИП "Order"
+            const transformedOrders: Order[] = data.map(order => ({
+                id: order.id,
+                createdAt: order.createdAt,
+                totalPrice: order.totalPrice,
+                status: order.status,
+                // Мапимо вкладені дані
+                userName: order.user?.name || 'Клієнт', // ⬅️ з order.user.name
+                items: order.items.map(item => ({     // ⬅️ з order.items
+                    name: item.dish.name,
+                    quantity: item.quantity,
+                    price: item.priceAtPurchase
+                }))
+            }));
+
+            setOrders(sortOrders(transformedOrders)); // ⬅️ СОРТУЄМО ТРАНСФОРМОВАНІ
         } catch (err: any) {
             setError(err.message);
             setOrders([]);
@@ -98,34 +151,42 @@ export default function RestaurantDashboard() {
     fetchInitialOrders();
 
 
-    // --- B. Налаштування Pusher (для миттєвих оновлень) ---
+    // --- B. Налаштування Pusher ---
     const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
 
     const channel = pusherClient.subscribe(channelName);
 
-    // Слухач: НОВІ ЗАМОВЛЕННЯ
-    channel.bind('new-order', (data: { order: any, items: ItemDetails[], userName: string }) => {
+    // 💡 5. ВИПРАВЛЕНО: Слухач НОВИХ ЗАМОВЛЕНЬ
+    channel.bind('new-order', (data: NewOrderPusherPayload) => {
+      console.log('Pusher: Отримано нове замовлення!', data);
+      
+      // Розпаковуємо дані згідно типу NewOrderPusherPayload
       const newOrder: Order = {
           id: data.order.id,
           createdAt: data.order.createdAt,
           totalPrice: data.order.totalPrice,
-          userName: data.userName,
-          items: data.items,
-          status: 'PENDING',
+          status: data.order.status, // Це 'PENDING'
+          userName: data.userName,   // ⬅️ з data.userName
+          items: data.order.items.map(item => ({ // ⬅️ з data.order.items
+              name: item.name,
+              quantity: item.quantity,
+              price: item.priceAtPurchase
+          })),
       };
-      // Додаємо нове замовлення та пересортовуємо весь список
+      
       setOrders(prev => sortOrders([newOrder, ...prev])); 
     });
 
-    // Слухач: ОНОВЛЕННЯ СТАТУСУ (на випадок, якщо хтось інший натиснув кнопку)
+    // Слухач ОНОВЛЕННЯ СТАТУСУ (цей код був коректним)
     channel.bind('order-status-update', (data: { orderId: number, newStatus: Order['status'] }) => {
+         console.log('Pusher: Отримано оновлення статусу!', data);
          setOrders(prev => {
              const updatedOrders = prev.map(order => 
                  order.id === data.orderId ? { ...order, status: data.newStatus } : order
              );
-             return sortOrders(updatedOrders); // ⬅️ ПЕРЕСОРТОВУЄМО
+             return sortOrders(updatedOrders);
          });
     });
 
@@ -139,7 +200,7 @@ export default function RestaurantDashboard() {
   }, [restaurantId]);
   
   
-  // 3. Зміна статусу (PUT API та сповіщення клієнта)
+  // 3. Зміна статусу (Цей код був коректним)
   const handleStatusChange = async (orderId: number, currentStatus: Order['status']) => {
       let newStatus: Order['status'];
 
@@ -148,15 +209,15 @@ export default function RestaurantDashboard() {
       else if (currentStatus === 'READY') newStatus = 'COMPLETED';
       else return; 
 
-      // 1. Оновлюємо UI миттєво та ПЕРЕСОРТОВУЄМО
+      // 1. Оптимістичне оновлення UI та сортування
       setOrders(prev => {
             const updatedOrders = prev.map(order => 
                 order.id === orderId ? { ...order, status: newStatus } : order
             );
-            return sortOrders(updatedOrders); // ⬅️ ПЕРЕСОРТОВУЄМО
+            return sortOrders(updatedOrders);
         });
       
-      // 2. Викликаємо API для збереження статусу та сповіщення клієнта
+      // 2. Виклик API для збереження та сповіщення
       try {
           const res = await fetch(`/api/manage/order/${orderId}/status`, {
               method: 'PUT',
@@ -166,11 +227,15 @@ export default function RestaurantDashboard() {
           
           if (!res.ok) {
               throw new Error('Не вдалося оновити статус на сервері.');
+              // (Тут можна додати логіку відкату стану, якщо запит не вдався)
           }
       } catch (error) {
           console.error("Помилка PUT-запиту:", error);
+          // (Логіка відкату)
       }
   };
+
+  // --- РЕНДЕР ---
 
   if (isLoading) return <div className="p-8 text-center text-gray-500">Завантаження історії замовлень...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Помилка: {error}</div>;
@@ -190,7 +255,7 @@ export default function RestaurantDashboard() {
         {orders.length > 0 ? (
           orders.map((order) => (
             // Картка замовлення
-            <div key={order.id} className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 flex flex-col justify-between">
+            <div key={order.id} className={`bg-white rounded-xl shadow-lg border flex flex-col justify-between p-6 ${order.status === 'PENDING' ? 'border-red-200' : 'border-gray-100'}`}>
               
               {/* Хедер картки */}
               <div className="mb-4">
@@ -200,12 +265,12 @@ export default function RestaurantDashboard() {
                 </div>
                 <h3 className="text-xl font-bold mb-1">Замовлення #{order.id}</h3>
                 <p className="text-sm text-gray-600">Клієнт: {order.userName}</p>
-                <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleTimeString()}</p>
+                <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleTimeString('uk-UA')}</p>
               </div>
 
               {/* Деталі замовлення */}
               <div className="flex-grow py-4 border-y border-gray-100">
-                <ul className="space-y-1 text-sm">
+                <ul className="space-y-1 text-sm max-h-40 overflow-y-auto pr-2">
                   {order.items.map((item, index) => (
                     <li key={index} className="flex justify-between items-start gap-2">
                       <span className="text-gray-700 font-medium break-words pr-2">{item.name} (x{item.quantity})</span>
@@ -225,7 +290,7 @@ export default function RestaurantDashboard() {
                 {order.status === 'PENDING' && (
                   <button 
                       onClick={() => handleStatusChange(order.id, 'PENDING')}
-                      className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-600 transition"
+                      className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-600 transition shadow-sm"
                   >
                     Прийняти
                   </button>
@@ -233,7 +298,7 @@ export default function RestaurantDashboard() {
                 {order.status === 'PREPARING' && (
                   <button 
                       onClick={() => handleStatusChange(order.id, 'PREPARING')}
-                      className="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-600 transition"
+                      className="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-600 transition shadow-sm"
                   >
                     Готово
                   </button>
@@ -241,10 +306,13 @@ export default function RestaurantDashboard() {
                 {order.status === 'READY' && (
                   <button 
                       onClick={() => handleStatusChange(order.id, 'READY')}
-                      className="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-gray-500 transition"
+                      className="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-gray-500 transition shadow-sm"
                   >
                     Видати
                   </button>
+                )}
+                {order.status === 'COMPLETED' && (
+                  <span className="text-sm font-medium text-gray-500">Завершено</span>
                 )}
               </div>
             </div>

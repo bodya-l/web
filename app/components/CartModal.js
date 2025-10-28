@@ -2,13 +2,12 @@
 'use client';
 
 import { useState } from 'react';
-// ⬅️ clearCart має бути доступним через useCart
 import { useCart } from '@/context/CartContext'; 
 import Image from 'next/image';
 import { X, Trash2, Minus, Plus } from 'lucide-react';
 
-export default function CartModal({ isOpen, onClose }) {
-    // ⬅️ ДОДАНО clearCart до деструктуризації
+// 💡 1. Компонент тепер приймає "restaurantId" як пропс
+export default function CartModal({ isOpen, onClose, restaurantId }) {
     const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart(); 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -27,11 +26,23 @@ export default function CartModal({ isOpen, onClose }) {
             quantity: item.quantity
         }));
 
+        // 💡 2. Додаткова перевірка, що ID ресторану є
+        if (!restaurantId) {
+            setError('Помилка: не вдалося визначити ресторан. Оновіть сторінку.');
+            setIsLoading(false);
+            return;
+        }
+
         try {
             const res = await fetch('/api/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cart: itemsForApi }),
+                
+                // 💡 3. ГОЛОВНА ЗМІНА: Додаємо restaurantId в тіло запиту
+                body: JSON.stringify({ 
+                    cart: itemsForApi,
+                    restaurantId: restaurantId // ⬅️ Ось воно!
+                }),
             });
 
             const data = await res.json();
@@ -43,15 +54,17 @@ export default function CartModal({ isOpen, onClose }) {
             // Успіх!
             alert('Ваше замовлення успішно оформлено! Очікуйте підтвердження на Кухні.');
             
-            // ▼▼▼ ВИПРАВЛЕННЯ: ОЧИЩЕННЯ КОШИКА ▼▼▼
             clearCart(); 
-            // ▲▲▲ ▲▲▲ ▲▲▲
-            
             onClose(); // Закриваємо модалку
 
         } catch (err) {
             console.error('Order error:', err);
-            setError(`Помилка замовлення: ${err.message}`);
+            // Покращена обробка помилок
+            if (err instanceof Error) {
+                setError(`Помилка замовлення: ${err.message}`);
+            } else {
+                setError('Сталася невідома помилка при замовленні');
+            }
         } finally {
             setIsLoading(false);
         }

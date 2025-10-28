@@ -1,26 +1,24 @@
-// app/menu-secondary/page.js
+// app/menu-secondary/[restaurantid]/page.js
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import ProfileModal from '../components/ProfileModal';
-import CartModal from '../components/CartModal';
-import MyOrdersModal from '../components/MyOrdersModal'; 
-import { useCart } from '../../context/CartContext';
+import ProfileModal from '../../components/ProfileModal'; // (Перевірте шлях)
+import CartModal from '../../components/CartModal';       // (Перевірте шлях)
+import MyOrdersModal from '../../components/MyOrdersModal';   // (Перевірте шлях)
+import { useCart } from '../../../context/CartContext';    // (Перевірте шлях)
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, ShoppingCart, User, Clock } from 'lucide-react';
 import Pusher from 'pusher-js'; 
 
-// ⬅️ Об'єкт категорій для побудови навігації
 const SIDE_NAV_CATEGORIES = {
     "Кухня": ["Гарячі страви", "Супи", "Салати", "Десерти"],
     "Напої": ["Алкогольні напої", "Безалкогольні напої", "Кава", "Чай"],
-    "Піца": ["Піца"],
 };
 
-export default function MenuSecondaryPage() {
+export default function MenuSecondaryPage({ params }) {
     const [dishes, setDishes] = useState([]);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -30,23 +28,28 @@ export default function MenuSecondaryPage() {
 
     const searchParams = useSearchParams();
     const currentCategory = searchParams.get('category'); 
-    const restaurantId = searchParams.get('id') || '1'; 
+    
+    // Отримуємо ID ресторану з params (з URL)
+    const restaurantId = params.restaurantid; 
 
+    // 💡 Отримуємо оновлену функцію addToCart
     const { addToCart, cartCount } = useCart();
     const { data: session, status } = useSession();
     
     const userId = session?.user?.id ? String(session.user.id) : null; 
 
-    // 1. Завантаження даних
+    // 1. Завантаження даних страв
     useEffect(() => {
-        if (currentCategory) { 
+        if (currentCategory && restaurantId) { // Додано перевірку restaurantId
+            // 💡 Добре б передавати і ID ресторану, щоб API повернув страви
+            // тільки для цього ресторану, але поки залишимо так:
             fetch(`/api/dishes?category=${currentCategory}`)
                 .then((res) => res.json())
                 .then((data) => {
                     setDishes(data);
                 });
         }
-    }, [currentCategory]); 
+    }, [currentCategory, restaurantId]); // Додано restaurantId в залежності
 
     // 2. Логіка підписки на Pusher (Сповіщення про статус)
     useEffect(() => {
@@ -79,7 +82,7 @@ export default function MenuSecondaryPage() {
         };
     }, [userId, status]); 
 
-    // ⬅️ Логіка для визначення активного dropdown при завантаженні сторінки
+    // 3. Логіка для визначення активного dropdown
     useEffect(() => {
         const parentCategory = Object.entries(SIDE_NAV_CATEGORIES).find(([_, subcats]) => 
             subcats.includes(currentCategory)
@@ -100,6 +103,7 @@ export default function MenuSecondaryPage() {
             <CartModal
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
+                restaurantId={restaurantId} // ⬅️ Передаємо ID в модалку
             />
             <MyOrdersModal
                 isOpen={isOrdersOpen}
@@ -113,6 +117,7 @@ export default function MenuSecondaryPage() {
                     
                     {/* secondaryMenuHeaderNew */}
                     <header className="flex items-center gap-4 sm:gap-6 px-4 sm:px-6 lg:px-10 py-4 sm:py-5 border-b border-gray-100 flex-shrink-0 w-full max-w-7xl mx-auto">
+                        {/* Посилання "Назад" (можливо, на /menu/ID або /) */}
                         <Link href={`/menu/${restaurantId}`} className="text-2xl sm:text-3xl no-underline text-gray-800 font-bold">
                             <ArrowLeft size={24} strokeWidth={2.5} />
                         </Link>
@@ -123,7 +128,6 @@ export default function MenuSecondaryPage() {
                         {/* headerIcons */}
                         <div className="flex items-center gap-4 sm:gap-6 ml-auto">
                             
-                            {/* 1. КНОПКА "Мої замовлення" (ТЕКСТОВА) */}
                             <button 
                                 onClick={() => setIsOrdersOpen(true)}
                                 className="bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer whitespace-nowrap transition hover:bg-green-200"
@@ -131,13 +135,13 @@ export default function MenuSecondaryPage() {
                                 Мої Замовлення
                             </button>
 
-                            {/* 2. cartIcon */}
+                            {/* cartIcon */}
                             <span className="text-xl sm:text-2xl cursor-pointer z-10 relative text-gray-800" onClick={() => setIsCartOpen(true)}>
                                 <ShoppingCart size={22} strokeWidth={2.5} />
                                 {cartCount > 0 && <span className="absolute -top-2 -right-2.5 bg-red-600 text-white rounded-full px-1.5 py-0.5 text-xs font-bold leading-none min-w-[18px] text-center">{cartCount}</span>}
                             </span>
                             
-                            {/* 3. profileIcon */}
+                            {/* profileIcon */}
                             <span className="text-xl sm:text-2xl cursor-pointer z-10 relative text-gray-800" onClick={() => setIsProfileOpen(true)}>
                                 {session?.user?.image ? (
                                     <img src={session.user.image} alt="profile" className="w-7 h-7 rounded-full object-cover" />
@@ -151,7 +155,7 @@ export default function MenuSecondaryPage() {
                     {/* secondaryMenuBody */}
                     <div className="flex flex-grow overflow-hidden w-full max-w-7xl mx-auto">
                         
-                        {/* ⬅️ Бічна навігація (SideNav) - РОЗСУВНИЙ ДИЗАЙН */}
+                        {/* Бічна навігація (SideNav) */}
                         <nav 
                             className="flex flex-col p-4 sm:p-5 border-r border-gray-100 gap-0 flex-shrink-0 w-[150px] sm:w-[220px] overflow-y-auto"
                         >
@@ -162,19 +166,17 @@ export default function MenuSecondaryPage() {
                                 return (
                                     <div key={mainTitle} className="w-full">
                                         
-                                        {/* Основна назва категорії (Батьківський елемент) */}
                                         <span 
-                                            onClick={() => setOpenDropdown(isDropdownOpen ? null : mainTitle)} // ⬅️ КЛІК ДЛЯ РОЗКРИТТЯ/ЗАКРИТТЯ
+                                            onClick={() => setOpenDropdown(isDropdownOpen ? null : mainTitle)} 
                                             className={`no-underline px-4 py-3 text-left font-medium text-sm sm:text-base transition-colors duration-200 block cursor-pointer rounded-lg
                                                 ${isDropdownOpen || isMainCategoryActive 
-                                                    ? 'bg-gray-200 text-gray-900 font-semibold' // ⬅️ Активний стиль (Сірий)
+                                                    ? 'bg-gray-200 text-gray-900 font-semibold' 
                                                     : 'text-gray-800 hover:bg-gray-100'}`
                                             }
                                         >
                                             {mainTitle}
                                         </span>
                                         
-                                        {/* Випадаюче меню (РОЗСУВНИЙ СПИСОК) */}
                                         <ul 
                                             className={`list-none p-0 overflow-hidden transition-all duration-300 ease-in-out 
                                                 ${isDropdownOpen || isMainCategoryActive ? 'max-h-96 opacity-100 pb-2' : 'max-h-0 opacity-0'}`
@@ -185,10 +187,10 @@ export default function MenuSecondaryPage() {
                                                 return (
                                                     <li key={subCategory}>
                                                         <Link 
-                                                            href={`/menu-secondary?id=${restaurantId}&category=${subCategory}`} 
+                                                            href={`/menu-secondary/${restaurantId}?category=${subCategory}`} 
                                                             className={`block no-underline pl-8 pr-3 py-2 text-left text-sm transition-colors duration-200 
                                                                 ${isActive 
-                                                                    ? 'bg-green-100 text-green-700 font-semibold rounded-md' // ⬅️ ЗЕЛЕНЕ ВИДІЛЕННЯ
+                                                                    ? 'bg-green-100 text-green-700 font-semibold rounded-md'
                                                                     : 'text-gray-700 hover:bg-gray-50'}`
                                                             }
                                                         >
@@ -204,7 +206,7 @@ export default function MenuSecondaryPage() {
 
                             {/* --- ПІЦА (Звичайне посилання, без dropdown) --- */}
                             <Link 
-                                href={`/menu-secondary?id=${restaurantId}&category=Піца`} 
+                                href={`/menu-secondary/${restaurantId}?category=Піца`} 
                                 className={`no-underline px-4 py-3 rounded-lg text-left font-medium text-sm sm:text-base transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis 
                                     ${'Піца' === currentCategory ? 'bg-green-100 text-green-700 font-semibold' : 'text-gray-800 hover:bg-gray-100'}`}
                             >
@@ -246,7 +248,10 @@ export default function MenuSecondaryPage() {
                                         />
                                         <button
                                             className="absolute -bottom-2 -right-2 bg-white border border-gray-200 shadow-lg text-green-500 rounded-full w-8 h-8 sm:w-9 sm:h-9 text-3xl font-light cursor-pointer flex items-center justify-center leading-none transition-transform active:scale-90"
-                                            onClick={() => addToCart(dish)}
+                                            
+                                            // 💡 6. ГОЛОВНА ЗМІНА ТУТ:
+                                            // Ми передаємо не тільки 'dish', але й 'restaurantId'
+                                            onClick={() => addToCart(dish, restaurantId)}
                                         >
                                             +
                                         </button>

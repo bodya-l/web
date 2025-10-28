@@ -114,7 +114,7 @@ export default function ManageRestaurantsPage() {
                                     {/* manageRestaurantImage */}
                                     <div className="relative w-full h-48 md:w-48 md:h-28 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
                                         <Image
-                                            src={restaurant.imageUrl || '/images/placeholder.jpg'}
+                                            src={restaurant.logoUrl || '/images/placeholder.jpg'}
                                             alt={restaurant.name}
                                             layout="fill"
                                             objectFit="cover"

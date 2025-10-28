@@ -2,8 +2,9 @@
 import { NextResponse } from 'next/server';
 import Pusher from 'pusher';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client'; // 💡 1. ДОДАНО ЦЕЙ ІМПОРТ
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth.config'; // ⬅️ Імпорт конфігурації
+import { authOptions } from '@/lib/auth.config';
 
 // Ініціалізація Pusher
 const pusher = new Pusher({
@@ -27,11 +28,11 @@ type PusherItemDetails = {
     price: number;
 };
 
-// ▼▼▼ ТИП ДЛЯ NESTED WRITE: Як Prisma очікує дані для створення OrderItem ▼▼▼
+// Тип для Prisma nested write
 type OrderItemCreateData = {
     dishId: number; 
     quantity: number; 
-    priceAtPurchase: number; 
+    priceAtPurchase: number; // Зберігаємо ціну на момент покупки
 };
 
 export async function POST(request: Request) {
@@ -42,16 +43,27 @@ export async function POST(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ message: 'Неавторизовано. Увійдіть, щоб зробити замовлення.' }, { status: 401 });
     }
-    const userId = session.user.id as number;
+    const userId = Number(session.user.id); 
 
-    const body: { cart: CartItem[] } = await request.json();
-    const { cart } = body;
+    // 2. ОТРИМАННЯ ДАНИХ З ТІЛА ЗАПИТУ
+    const body: { cart: CartItem[]; restaurantId: string } = await request.json();
+    const { cart, restaurantId } = body;
 
+    // 3. ВАЛІДАЦІЯ ВХІДНИХ ДАНИХ
     if (!cart || cart.length === 0) {
       return NextResponse.json({ message: 'Кошик порожній' }, { status: 400 });
     }
+    
+    if (!restaurantId) {
+        return NextResponse.json({ message: 'Не вказано ID ресторану' }, { status: 400 });
+    }
+    
+    const numericRestaurantId = Number(restaurantId);
+    if (isNaN(numericRestaurantId)) {
+        return NextResponse.json({ message: 'Некоректний ID ресторану' }, { status: 400 });
+    }
 
-    // 2. ОТРИМАННЯ СПРАВЖНІХ ЦІН З БД
+    // 4. ОТРИМАННЯ ДАНИХ З БД ТА ВАЛІДАЦІЯ
     const dishIds = cart.map((item) => item.dishId);
     
     const dishesFromDb = await prisma.dish.findMany({
@@ -60,77 +72,110 @@ export async function POST(request: Request) {
     });
 
     if (dishesFromDb.length !== cart.length) {
-      return NextResponse.json({ message: 'Деякі страви не знайдено' }, { status: 404 });
+        const foundIds = new Set(dishesFromDb.map(d => d.id));
+        const missingIds = dishIds.filter(id => !foundIds.has(id));
+        return NextResponse.json({ message: `Страви з ID: ${missingIds.join(', ')} не знайдено` }, { status: 404 });
     }
     
-    // Перевіряємо, чи всі страви з одного ресторану (потрібен ID першої страви)
-    const restaurantId = dishesFromDb[0].category.restaurantId;
+    const allDishesMatchRestaurant = dishesFromDb.every(
+        dish => dish.category.restaurantId === numericRestaurantId
+    );
+
+    if (!allDishesMatchRestaurant) {
+        return NextResponse.json({ message: 'Кошик містить страви з різних ресторанів або ID ресторану невірний.' }, { status: 400 });
+    }
     
-    // 3. РОЗРАХУНОК СУМИ та підготовка OrderItem даних
+    // 5. РОЗРАХУНОК СУМИ та підготовка OrderItem даних
     let totalPrice = 0;
-    const priceMap = new Map(dishesFromDb.map((item) => [item.id, item.price]));
+    const dishDetailsMap = new Map(
+        dishesFromDb.map((item) => [item.id, { price: item.price, name: item.name }])
+    );
     
-    // ▼▼▼ ВИПРАВЛЕННЯ: Явне визначення типів масивів ▼▼▼
-    const itemsToCreate: OrderItemCreateData[] = []; // ⬅️ Тепер має тип OrderItemCreateData[]
-    const itemsForPusher: PusherItemDetails[] = []; // ⬅️ Ваш тип для Pusher
-    // ▲▲▲ ▲▲▲ ▲▲▲
+    const itemsToCreate: OrderItemCreateData[] = [];
+    const itemsForPusher: PusherItemDetails[] = [];
     
-    cart.forEach((cartItem) => {
-      const price = priceMap.get(cartItem.dishId);
-      const dishName = dishesFromDb.find(d => d.id === cartItem.dishId)?.name || 'Невідома страва';
+    for (const cartItem of cart) {
+      const details = dishDetailsMap.get(cartItem.dishId);
       
-      if (price !== undefined) {
-        totalPrice += price * cartItem.quantity;
+      if (details) {
+        const itemTotalPrice = details.price * cartItem.quantity;
+        totalPrice += itemTotalPrice;
         
-        // Дані для створення записів OrderItem у БД
         itemsToCreate.push({
             dishId: cartItem.dishId,
             quantity: cartItem.quantity,
-            priceAtPurchase: price, // Зберігаємо фіксовану ціну
+            priceAtPurchase: details.price, 
         });
         
-        // Дані для сповіщення власника
         itemsForPusher.push({
-            name: dishName,
+            name: details.name,
             quantity: cartItem.quantity,
-            price: price
+            price: details.price
         });
       }
-    });
+    }
 
-    // 4. ЗБЕРЕЖЕННЯ В БД: Створюємо Order та OrderItems за один запит (nested write)
+    // 6. ЗБЕРЕЖЕННЯ В БД (Транзакція)
     const savedOrder = await prisma.order.create({
       data: {
         userId: userId,
-        restaurantId: restaurantId,
+        restaurantId: numericRestaurantId, 
         totalPrice: totalPrice,
         status: 'PENDING', 
         items: {
-            create: itemsToCreate, // ⬅️ Створюємо пов'язані OrderItems
+            create: itemsToCreate, 
         }
       },
-      // Повертаємо деталі, щоб власник міг їх бачити
       include: {
           items: {
-              include: { dish: { select: { name: true } } }
+              include: { dish: { select: { name: true } } } 
+          },
+          user: {
+              select: { name: true, email: true } 
           }
       }
     });
 
-    // 5. PUSHER: Сповіщаємо власника ресторану
-    const channelName = `restaurant-${restaurantId}`;
+    // 7. PUSHER: Сповіщаємо власника ресторану
+    const channelName = `restaurant-${restaurantId}`; 
     const eventName = 'new-order';
     
-    await pusher.trigger(channelName, eventName, {
-      message: 'Нове замовлення!',
-      order: savedOrder,
-      items: itemsForPusher, // Надсилаємо об'єкти для миттєвого відображення
-      userName: session.user.name || 'Анонім',
-    });
+    const pusherPayload = {
+        message: `Нове замовлення! (ID: ${savedOrder.id})`,
+        order: {
+            id: savedOrder.id,
+            totalPrice: savedOrder.totalPrice,
+            status: savedOrder.status,
+            createdAt: savedOrder.createdAt,
+            items: savedOrder.items.map(item => ({ 
+                name: item.dish.name,
+                quantity: item.quantity,
+                priceAtPurchase: item.priceAtPurchase
+            }))
+        },
+        userName: savedOrder.user.name || session.user.name || 'Анонімний клієнт',
+        userEmail: savedOrder.user.email || session.user.email,
+    };
+    
+    await pusher.trigger(channelName, eventName, pusherPayload);
 
-    return NextResponse.json({ success: true, order: savedOrder }, { status: 201 });
+    // 8. УСПІШНА ВІДПОВІДЬ
+    return NextResponse.json({ success: true, orderId: savedOrder.id }, { status: 201 });
+
+  // 💡 2. ОНОВЛЕНО ЦЕЙ БЛОК 'catch'
   } catch (error) {
     console.error('Помилка при створенні замовлення:', error);
+    
+    // Перевіряємо, чи це відома помилка Prisma (це виправляє помилку TypeScript)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Тепер TypeScript "знає", що 'error.code' існує
+        if (error.code === 'P2003') { // Foreign key constraint failed
+            // Помилка зовнішнього ключа (наприклад, userId або dishId не існує)
+            return NextResponse.json({ message: 'Помилка зв\'язку даних (напр. ID страви або користувача не існує)' }, { status: 400 });
+        }
+    }
+    
+    // Якщо це не помилка P2003 або взагалі не помилка Prisma
     return NextResponse.json({ message: 'Внутрішня помишка сервера' }, { status: 500 });
   }
 }

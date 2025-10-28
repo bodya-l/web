@@ -157,7 +157,7 @@ export default function MenuPage() {
                                 <Link 
                                     key={category.name}
                                     // ⬅️ ПОСИЛАННЯ: Використовуємо category.link для URL
-                                    href={`/menu-secondary?id=${restaurantId}&category=${category.link}`} 
+                                    href={`/menu-secondary/${restaurantId}?id=${restaurantId}&category=${category.link}`} 
                                     className="bg-white rounded-lg p-4 flex items-center shadow-sm hover:shadow-md transition-shadow duration-200"
                                 >
                                     <div className="bg-gray-100 rounded-md p-2 flex-shrink-0">
