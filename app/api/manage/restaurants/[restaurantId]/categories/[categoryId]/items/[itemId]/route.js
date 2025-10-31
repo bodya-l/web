@@ -1,11 +1,10 @@
-// app/api/manage/restaurants/[restaurantId]/categories/[categoryId]/items/[itemId]/route.js
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+// 💡 ВИПРАВЛЕНО: Використання @/
+import { authOptions } from '@/lib/auth.config';
 import prisma from '@/lib/prisma';
 
 // --- Функція для перевірки доступу власника до товару ---
-// (Ця функція залишається без змін, вона приймає чистий 'itemId')
 async function verifyOwnerAccess(session, restaurantId, categoryId, itemId) {
     console.log('Verifying access for:', {
         sessionEmail: session?.user?.email,
@@ -49,12 +48,9 @@ async function verifyOwnerAccess(session, restaurantId, categoryId, itemId) {
 export async function PUT(request, { params }) {
     const session = await getServerSession(authOptions);
 
-    // --- ↓↓↓ ОСНОВНА ЗМІНА ТУТ (ПОВЕРНУЛИ) ↓↓↓ ---
-    // Ми читаємо params.itemId (БЕЗ 's'), бо папка називається [itemId]
     const restaurantId = parseInt(params.restaurantId, 10);
     const categoryId = parseInt(params.categoryId, 10);
-    const itemId = parseInt(params.itemId, 10); // Використовуємо .itemId
-    // --- ↑↑↑ ОСНОВНА ЗМІНА ТУТ (ПОВЕРНУЛИ) ↑↑↑ ---
+    const itemId = parseInt(params.itemId, 10);
 
     const hasAccess = await verifyOwnerAccess(session, restaurantId, categoryId, itemId);
     if (!hasAccess) {
@@ -98,14 +94,11 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
     const session = await getServerSession(authOptions);
 
-    // --- ↓↓↓ ОСНОВНА ЗМІНА ТУТ (ПОВЕРНУЛИ) ↓↓↓ ---
-    // Ми читаємо params.itemId (БЕЗ 's'), бо папка називається [itemId]
     const restaurantId = parseInt(params.restaurantId, 10);
     const categoryId = parseInt(params.categoryId, 10);
-    const itemId = parseInt(params.itemId, 10); // Використовуємо .itemId
-    // --- ↑↑↑ ОСНОВНА ЗМІНА ТУТ (ПОВЕРНУЛИ) ↑↑↑ ---
+    const itemId = parseInt(params.itemId, 10);
 
-    console.log(`--- DELETE request received for item ${itemId} ---`); // Тепер тут має бути 40
+    console.log(`--- DELETE request received for item ${itemId} ---`);
 
     const hasAccess = await verifyOwnerAccess(session, restaurantId, categoryId, itemId);
     if (!hasAccess) {

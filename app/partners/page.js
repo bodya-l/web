@@ -1,15 +1,16 @@
 // app/partners/page.js
 'use client';
 
+// 1. Імпортуємо useState та ProfileModal
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-// ⬅️ ВИПРАВЛЕНО ШЛЯХИ: використовуємо відносні шляхи до компонентів
-import Header from '../components/Header'; 
-import Footer from '../components/Footer'; 
-import RestaurantCard from '../components/RestaurantCard'; 
+import Header from '../components/Header'; // Ваш Header.tsx
+import Footer from '../components/Footer';
+import RestaurantCard from '../components/RestaurantCard';
+import ProfileModal from '../components/ProfileModal'; // ⬅️ 1. ІМПОРТ МОДАЛКИ
 
-// Тип для даних, які ми очікуємо від API (використовуємо JSDoc)
+// (JSDoc та StarRating залишаємо без змін)
 /**
  * @typedef {object} RestaurantPreview
  * @property {number} id
@@ -19,8 +20,6 @@ import RestaurantCard from '../components/RestaurantCard';
  * @property {string} [logoUrl]
  * @property {string} [bannerUrl]
  */
-
-// Компонент зірок (для цілісності)
 const StarRating = ({ rating }) => {
     const stars = [];
     const maxStars = 5;
@@ -36,19 +35,23 @@ const StarRating = ({ rating }) => {
 
 
 export default function PartnersPage() {
+    // 2. Додайте стан для модального вікна
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+
     const [restaurants, setRestaurants] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const defaultBanner = '/images/default_banner.jpg'; 
-    const defaultLogo = '/images/default_logo.png'; 
+    const defaultBanner = '/images/default_banner.jpg';
+    const defaultLogo = '/images/default_logo.png';
 
     // Завантаження даних
     useEffect(() => {
-        fetch('/api/partners')
+        setIsLoading(true);
+        fetch('/api/partners') // Використовуємо ваш API
             .then(res => {
-                 if (!res.ok) throw new Error('Failed to fetch partners data.');
-                 return res.json();
+                if (!res.ok) throw new Error('Failed to fetch partners data.');
+                return res.json();
             })
             .then(data => {
                 setRestaurants(data);
@@ -59,15 +62,21 @@ export default function PartnersPage() {
                 setIsLoading(false);
             });
     }, []);
-    
-    // Компонент зірок (винесений у функціональний компонент)
+
     const renderStarRating = (rating) => <StarRating rating={rating} />;
 
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
-            {/* ⬅️ Хедер */}
-            <Header /> 
+
+            {/* 3. Передайте функцію для відкриття модалки в Header */}
+            <Header onProfileClick={() => setIsProfileOpen(true)} />
+
+            {/* 4. Додайте ProfileModal сюди, щоб він міг рендеритись */}
+            <ProfileModal
+                isOpen={isProfileOpen}
+                onClose={() => setIsProfileOpen(false)}
+            />
 
             {/* ОСНОВНИЙ КОНТЕНТ */}
             <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -82,12 +91,12 @@ export default function PartnersPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {restaurants.map((restaurant) => (
-                            <RestaurantCard 
+                            <RestaurantCard
                                 key={restaurant.id}
                                 restaurant={restaurant}
                                 defaultBanner={defaultBanner}
                                 defaultLogo={defaultLogo}
-                                renderStarRating={renderStarRating} // Передаємо функцію рендерингу зірок
+                                renderStarRating={renderStarRating}
                             />
                         ))}
                     </div>

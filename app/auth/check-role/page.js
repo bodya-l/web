@@ -16,7 +16,7 @@ export default function CheckRolePage() {
             if (session?.user?.role === 'OWNER') {
                 router.replace('/manage/restaurants'); // replace, щоб не можна було повернутись назад
             } else {
-                router.replace('/menu');
+                router.replace('/homepage');
             }
         } else if (status === 'unauthenticated') {
             // Якщо з якоїсь причини не вдалося увійти, повертаємо на логін

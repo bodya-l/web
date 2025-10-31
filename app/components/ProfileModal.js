@@ -12,7 +12,7 @@ export default function ProfileModal({ isOpen, onClose }) {
         return null;
     }
 
-    // ▼▼▼ ВИПРАВЛЕННЯ КЕШУВАННЯ GOOGLE ▼▼▼
+    //  ВИПРАВЛЕННЯ КЕШУВАННЯ GOOGLE
     const handleSignOut = async () => {
         // 1. Очищуємо локальну сесію NextAuth (без автоматичного перенаправлення)
         await signOut({ redirect: false }); 
