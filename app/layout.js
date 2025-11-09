@@ -1,9 +1,7 @@
-// app/layout.js
 import './globals.css';
 import Providers from './providers';
-// ▼▼▼ ВИПРАВЛЕНО ШЛЯХ: Використовуємо абсолютний шлях для CartProvider ▼▼▼
-import { CartProvider } from '@/context/CartContext';
-// ▲▲▲ ▲▲▲ ▲▲▲
+// import { CartProvider } from '@/context/CartContext'; // Цей імпорт більше не потрібен тут
+
 
 export const metadata = {
     title: 'NAZVA - Гейміфіковане меню',
@@ -17,17 +15,16 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
     return (
+        // suppressHydrationWarning важливий для next-themes
         <html lang="uk" suppressHydrationWarning={true}>
-        <body className="bg-gray-50 text-gray-800 antialiased"> {/* Базові стилі Tailwind */}
-        
-        {/* NextAuth Providers */}
+        {/* Класи для світлого та темного режиму на body */}
+        <body className="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 antialiased">
+
         <Providers>
-            {/* CartProvider */}
-            <CartProvider>
-                {children}
-            </CartProvider>
+            {/* CartProvider вже обгорнутий всередині Providers.js, тому тут його немає */}
+            {children}
         </Providers>
-        
+
         </body>
         </html>
     );

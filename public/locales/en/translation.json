@@ -1,0 +1,16 @@
+{
+  "profile": {
+    "title": "Profile",
+    "achievements": "Achievements",
+    "restaurants_visited": "Restaurants visited",
+    "unlocked": "unlocked",
+    "my_items": "My Items",
+    "logout": "Log Out",
+    "no_achievements": "You have no achievements yet. Make your first order!"
+  },
+  "theme_switcher": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

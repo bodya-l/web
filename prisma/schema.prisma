@@ -1,3 +1,6 @@
+// This is a file representation.
+// You can directly edit, format, and save this code.
+// Your changes will be reflected in the user's view.
 
 generator client {
   provider = "prisma-client-js"
@@ -8,45 +11,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enum для типів ачівок
+enum AchievementType {
+  TOTAL_ORDERS
+  UNIQUE_RESTAURANTS
+  // CUSTOM_LOGIC // Можна додати для ачівок типу "Coffee Lover"
+}
+
 enum Role {
   CUSTOMER
   OWNER
 }
 
-
 model User {
-  id              Int      @id @default(autoincrement())
-  name            String?
-  email           String?  @unique
-  emailVerified   DateTime?
-  image           String?
-  password        String?
+  id            Int       @id @default(autoincrement())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
 
-  role            Role     @default(CUSTOMER)
-  level           Int      @default(1)
-  progress        Int      @default(0)
+  role Role @default(CUSTOMER)
 
-  accounts        Account[]
-  sessions        Session[]
+  // 💡 --- ВИДАЛЕНО ---
+  // level    Int  @default(1)
+  // progress Int  @default(0)
+  // --- КІНЕЦЬ ---
+
+  accounts Account[]
+  sessions Session[]
 
   restaurants     Restaurant[]
   orders          Order[]
+  UserAchievement UserAchievement[]
+
+  // 💡 --- ДОДАНО ---
+  // Зв'язок зі статистикою по ресторанах
+  restaurantStats UserRestaurantStats[]
+  // --- КІНЕЦЬ ---
 }
 
-
 model Account {
-  id                 Int      @id @default(autoincrement())
-  userId             Int
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -69,27 +86,47 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-
 model Restaurant {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   name        String
   description String?
   bannerUrl   String?
   logoUrl     String?
   address     String?
-  
-  stars       Float    @default(5.0) 
-  
-  ownerId     Int
-  owner       User     @relation(fields: [ownerId], references: [id])
-  categories  Category[]
-  
 
-  orders      Order[] @relation("OrderToRestaurant")
+  stars Float @default(5.0)
+
+  ownerId    Int
+  owner      User       @relation(fields: [ownerId], references: [id])
+  categories Category[]
+
+  orders Order[] @relation("OrderToRestaurant")
+
+  // 💡 --- ДОДАНО ---
+  // Зв'язок зі статистикою по користувачах
+  userStats UserRestaurantStats[]
+  // --- КІНЕЦЬ ---
 }
 
+// 💡 --- НОВА МОДЕЛЬ ---
+// Зберігає досвід (XP) користувача для КОЖНОГО ресторану
+model UserRestaurantStats {
+  id           Int @id @default(autoincrement())
+  userId       Int
+  restaurantId Int
+  xp           Int @default(0) // Досвід
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Унікальний індекс, щоб один юзер мав лише один запис XP на ресторан
+  @@unique([userId, restaurantId])
+}
+
+// --- КІНЕЦЬ НОВОЇ МОДЕЛІ ---
+
 model Category {
-  id           Int      @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   name         String
   description  String?
   restaurantId Int
@@ -98,32 +135,28 @@ model Category {
 }
 
 model Dish {
-  id            Int      @id @default(autoincrement())
-  name          String
-  description   String?
-  price         Float
-  calories      Int?
-  imageUrl      String?
-  categoryId    Int
-  category      Category @relation(fields: [categoryId], references: [id])
-  
-  orderItems    OrderItem[] 
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  calories    Int?
+  imageUrl    String?
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id])
+
+  orderItems OrderItem[]
 }
-
-
 
 model OrderItem {
-    id              Int      @id @default(autoincrement())
-    orderId         Int
-    dishId          Int
-    quantity        Int
-    priceAtPurchase Float
+  id              Int   @id @default(autoincrement())
+  orderId         Int
+  dishId          Int
+  quantity        Int
+  priceAtPurchase Float
 
-    order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-    dish            Dish     @relation(fields: [dishId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dish  Dish  @relation(fields: [dishId], references: [id])
 }
-
-
 
 model Order {
   id           Int      @id @default(autoincrement())
@@ -132,11 +165,45 @@ model Order {
   userId       Int
   user         User     @relation(fields: [userId], references: [id])
   restaurantId Int
-  
 
-  restaurant   Restaurant @relation("OrderToRestaurant", fields: [restaurantId], references: [id])
+  restaurant Restaurant @relation("OrderToRestaurant", fields: [restaurantId], references: [id])
 
-  status       String   @default("PENDING")
-  
-  items        OrderItem[]
+  status String @default("PENDING") // Напр. PENDING, COMPLETED, CANCELLED
+
+  items OrderItem[]
+}
+
+model Achievement {
+  id          String  @id @default(cuid())
+  code        String  @unique // Унікальний код, напр. "FOODIE_1"
+  name        String // "Гурман 1-го рівня"
+  description String // "Зробити 1 завершене замовлення"
+  iconUrl     String? // URL для іконки ачівки
+
+  // Динамічні правила
+  type      AchievementType @default(TOTAL_ORDERS)
+  threshold Int             @default(1)
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        Int
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+model EmailVerificationCode {
+  id        Int      @id @default(autoincrement())
+  email     String
+  code      String
+  expiresAt DateTime
+
+  @@index([email])
 }
