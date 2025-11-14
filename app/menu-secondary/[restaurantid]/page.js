@@ -10,9 +10,9 @@ import CartModal from '../../components/CartModal';
 import MyOrdersModal from '../../components/MyOrdersModal';
 import { useCart } from '../../../context/CartContext';
 import { useSession } from 'next-auth/react';
-// 💡 1. Додаємо іконку 'Star'
+// 💡 1. Додаємо іконку 'Star' (вже було, просто перевіряю)
 import { ArrowLeft, ShoppingCart, User, Clock, Star } from 'lucide-react';
-import Pusher from 'pusher-js'; 
+import Pusher from 'pusher-js';
 
 const SIDE_NAV_CATEGORIES = {
     "Кухня": ["Гарячі страви", "Супи", "Салати", "Десерти"],
@@ -23,25 +23,30 @@ export default function MenuSecondaryPage({ params }) {
     const [restaurant, setRestaurant] = useState(null);
     const [dishes, setDishes] = useState([]);
     const [isLoadingRestaurant, setIsLoadingRestaurant] = useState(true);
-    
+
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-    const [openDropdown, setOpenDropdown] = useState(null); 
+    const [openDropdown, setOpenDropdown] = useState(null);
+
+    // 💡 1. ДОДАНО СТАН ДЛЯ РІВНІВ
+    const [loyalty, setLoyalty] = useState({ level: 1, progress: 0 });
+    const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
+    // ---
 
     const searchParams = useSearchParams();
-    const currentCategory = searchParams.get('category'); 
-    const restaurantId = params.restaurantid; 
+    const currentCategory = searchParams.get('category');
+    const restaurantId = params.restaurantid;
 
     const { addToCart, cartCount } = useCart();
     const { data: session, status } = useSession();
-    const userId = session?.user?.id ? String(session.user.id) : null; 
+    const userId = session?.user?.id ? String(session.user.id) : null;
 
     // Завантаження даних РЕСТОРАНУ
     useEffect(() => {
         if (restaurantId) {
             setIsLoadingRestaurant(true);
-            fetch(`/api/restaurants/${restaurantId}`) 
+            fetch(`/api/restaurants/${restaurantId}`)
                 .then((res) => {
                     if (!res.ok) {
                         throw new Error('Не вдалося завантажити дані ресторану');
@@ -63,7 +68,7 @@ export default function MenuSecondaryPage({ params }) {
 
     // Завантаження СТРАВ
     useEffect(() => {
-        if (currentCategory && restaurantId) { 
+        if (currentCategory && restaurantId) {
             const apiUrl = `/api/dishes?restaurantId=${restaurantId}&category=${currentCategory}`;
             fetch(apiUrl)
                 .then((res) => res.json())
@@ -76,32 +81,55 @@ export default function MenuSecondaryPage({ params }) {
     }, [currentCategory, restaurantId]);
 
     // ... (useEffect для Pusher без змін) ...
-     useEffect(() => {
+    useEffect(() => {
         if (status !== 'authenticated' || !userId) return;
         const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
         const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-        if (!pusherKey || !pusherCluster) return; 
+        if (!pusherKey || !pusherCluster) return;
         const channelName = `user-${userId}`;
         const pusherClient = new Pusher(pusherKey, { cluster: pusherCluster });
         const channel = pusherClient.subscribe(channelName);
         channel.bind('order-status-update', (data) => {
-          alert(`🔔 НОВИЙ СТАТУС: ${data.message}`);
+            alert(`🔔 НОВИЙ СТАТУС: ${data.message}`);
         });
         return () => {
-          pusherClient.unsubscribe(channelName);
-          pusherClient.disconnect();
+            pusherClient.unsubscribe(channelName);
+            pusherClient.disconnect();
         };
-    }, [userId, status]); 
+    }, [userId, status]);
 
     // ... (useEffect для Dropdown без змін) ...
     useEffect(() => {
-        const parentCategory = Object.entries(SIDE_NAV_CATEGORIES).find(([_, subcats]) => 
+        const parentCategory = Object.entries(SIDE_NAV_CATEGORIES).find(([_, subcats]) =>
             subcats.includes(currentCategory)
         )?.[0];
         if (parentCategory) {
             setOpenDropdown(parentCategory);
         }
     }, [currentCategory]);
+
+
+    // 💡 2. ДОДАНО ЗАВАНТАЖЕННЯ ДАНИХ ПРО РІВЕНЬ
+    useEffect(() => {
+        if (restaurantId) {
+            setIsLoadingLoyalty(true);
+            // Використовуємо той самий API-роут, що й раніше
+            fetch(`/api/loyalty/${restaurantId}`)
+                .then(res => res.json())
+                .then(data => {
+                    // data - це { level, progress, ... }
+                    setLoyalty(data);
+                })
+                .catch(error => {
+                    console.error('Failed to load loyalty data:', error);
+                    setLoyalty({ level: 1, progress: 0 }); // Дефолтне значення
+                })
+                .finally(() => {
+                    setIsLoadingLoyalty(false);
+                });
+        }
+    }, [restaurantId]);
+    // ---
 
 
     return (
@@ -112,14 +140,13 @@ export default function MenuSecondaryPage({ params }) {
 
             <main className="w-full min-h-screen flex flex-col bg-white justify-start">
                 <div className="w-full max-w-7xl mx-auto flex-grow flex flex-col overflow-hidden">
-                    
-                    {/* 💡 2. ОНОВЛЕНИЙ ХЕДЕР */}
+
+                    {/* ... (Хедер без змін) ... */}
                     <header className="flex items-center gap-4 sm:gap-6 px-4 sm:px-6 lg:px-10 py-4 sm:py-5 border-b border-gray-100 flex-shrink-0 w-full max-w-7xl mx-auto">
                         <Link href={`/menu/${restaurantId}`} className="text-2xl sm:text-3xl no-underline text-gray-800 font-bold flex-shrink-0">
                             <ArrowLeft size={24} strokeWidth={2.5} />
                         </Link>
-                        
-                        {/* 💡 3. ОНОВЛЕНИЙ БЛОК ІНФОРМАЦІЇ */}
+
                         <div className="restaurantInfo flex items-center gap-4 flex-grow min-w-0">
                             {isLoadingRestaurant ? (
                                 // Скелетон-завантажувач
@@ -134,36 +161,36 @@ export default function MenuSecondaryPage({ params }) {
                             ) : restaurant ? (
                                 // Блок з даними
                                 <>
-                                    {/* Логотип */}
-                                    <Image
-                                        src={restaurant.logoUrl || '/images/placeholder.jpg'}
-                                        alt={restaurant.name}
-                                        width={64} // 64px
-                                        height={64} // 64px
-                                        className="rounded-lg object-cover flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16"
-                                    />
-                                    {/* Інфо */}
-                                    <div className="flex-grow min-w-0">
-                                        <h3 className="font-bold text-lg truncate" title={restaurant.name}>
-                                            {restaurant.name}
-                                        </h3>
-                                        <p className="text-sm text-gray-500 truncate" title={restaurant.address}>
-                                            {restaurant.address || 'Адреса не вказана'}
-                                        </p>
-                                        {/* Зірки */}
-                                        <div className="flex items-center gap-1 mt-1">
-                                            <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                                            <span className="font-bold text-sm text-gray-800">{restaurant.stars.toFixed(1)}</span>
-                                            <span className="text-sm text-gray-400">({restaurant.description || 'опис'})</span>
-                                        </div>
-                                    </div>
+                                {/* Логотип */}
+                                <Image
+                                    src={restaurant.logoUrl || '/images/placeholder.jpg'}
+                                    alt={restaurant.name}
+                                    width={64} // 64px
+                                    height={64} // 64px
+                                    className="rounded-lg object-cover flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16"
+                                />
+                                {/* Інфо */}
+                                <div className="flex-grow min-w-0">
+                                    <h3 className="font-bold text-lg truncate" title={restaurant.name}>
+                                        {restaurant.name}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 truncate" title={restaurant.address}>
+                                        {restaurant.address || 'Адреса не вказана'}
+                                    </p>
+                                    {/* Зірки */}
+                                    <div className="flex items-center gap-1 mt-1">
+                                    <Star size={16} className="text-yellow-500 fill-yellow-500" />
+                                    <span className="font-bold text-sm text-gray-800">{restaurant.stars.toFixed(1)}</span>
+                                    <span className="text-sm text-gray-400">({restaurant.description || 'опис'})</span>
+                                </div>
+                                </div>
                                 </>
-                            ) : (
+                                ) : (
                                 // Помилка
                                 <h3 className="font-bold text-lg text-red-500">Помилка завантаження</h3>
-                            )}
+                                )}
                         </div>
-                        
+
                         {/* Іконки хедера (без змін) */}
                         <div className="flex items-center gap-4 sm:gap-6 ml-auto flex-shrink-0">
                             <button onClick={() => setIsOrdersOpen(true)} className="bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer whitespace-nowrap transition hover:bg-green-200">
@@ -183,9 +210,9 @@ export default function MenuSecondaryPage({ params }) {
                         </div>
                     </header>
 
-                    {/* ... (решта коду: навігація, список страв - без змін) ... */}
+                    {/* ... (Навігація без змін) ... */}
                     <div className="flex flex-grow overflow-hidden w-full max-w-7xl mx-auto">
-                        <nav 
+                        <nav
                             className="flex flex-col p-4 sm:p-5 border-r border-gray-100 gap-0 flex-shrink-0 w-[150px] sm:w-[220px] overflow-y-auto"
                         >
                             {Object.entries(SIDE_NAV_CATEGORIES).map(([mainTitle, subcategories]) => {
@@ -198,7 +225,7 @@ export default function MenuSecondaryPage({ params }) {
                                         </span>
                                         <ul className={`list-none p-0 overflow-hidden transition-all duration-300 ease-in-out ${isDropdownOpen || isMainCategoryActive ? 'max-h-96 opacity-100 pb-2' : 'max-h-0 opacity-0'}`}>
                                             {subcategories.map((subCategory) => {
-                                                const isActive = subCategory === currentCategory; 
+                                                const isActive = subCategory === currentCategory;
                                                 return (
                                                     <li key={subCategory}>
                                                         <Link href={`/menu-secondary/${restaurantId}?category=${subCategory}`} className={`block no-underline pl-8 pr-3 py-2 text-left text-sm transition-colors duration-200 ${isActive ? 'bg-green-100 text-green-700 font-semibold rounded-md' : 'text-gray-700 hover:bg-gray-50'}`}>
@@ -219,15 +246,30 @@ export default function MenuSecondaryPage({ params }) {
                         <div className="dishListNew flex-grow p-4 sm:p-5 lg:px-10 overflow-y-auto text-left">
                             <div className="dishListHeader flex justify-between items-center mb-6 flex-wrap gap-2">
                                 <h3>{currentCategory || 'Страви'}</h3>
+
+                                {/* 💡 3. ОНОВЛЕНО БЛОК РІВНЯ (ЗАМІСТЬ ХАРДКОДУ) */}
                                 <div className="dishProgress">
-                                    <span className="text-sm text-gray-500 font-medium">lvl. 23</span>
-                                    <div className="w-20 sm:w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-green-500 rounded-full" style={{ width: '83%' }}></div>
-                                    </div>
-                                    <span className="text-sm text-gray-500 font-medium">83%</span>
+                                    {isLoadingLoyalty ? (
+                                        // Скелетон-завантажувач
+                                        <>
+                                            <span className="text-sm text-gray-500 font-medium h-4 bg-gray-200 rounded w-10 animate-pulse"></span>
+                                            <div className="w-20 sm:w-24 h-2 bg-gray-200 rounded-full animate-pulse"></div>
+                                            <span className="text-sm text-gray-500 font-medium h-4 bg-gray-200 rounded w-8 animate-pulse"></span>
+                                        </>
+                                    ) : (
+                                        // Реальні дані
+                                        <>
+                                            <span className="text-sm text-gray-500 font-medium">lvl. {loyalty.level}</span>
+                                            <div className="w-20 sm:w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${loyalty.progress}%` }}></div>
+                                            </div>
+                                            <span className="text-sm text-gray-500 font-medium">{loyalty.progress}%</span>
+                                        </>
+                                    )}
                                 </div>
+                                {/* --- КІНЕЦЬ ОНОВЛЕННЯ --- */}
                             </div>
-                            
+
                             {Array.isArray(dishes) && dishes.length > 0 ? dishes.map((dish) => (
                                 <div key={dish.id} className="flex gap-3 sm:gap-4 border-b border-gray-100 py-4 sm:py-6 last:border-b-0">
                                     <div className="flex-grow overflow-hidden">

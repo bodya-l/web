@@ -1,7 +1,4 @@
-// This is a file representation.
-// You can directly edit, format, and save this code.
-// Your changes will be reflected in the user's view.
-
+// app/components/LocaleSwitcher.js
 'use client';
 
 import { useTranslation } from 'react-i18next';

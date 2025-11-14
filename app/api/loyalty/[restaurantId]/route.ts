@@ -1,6 +1,4 @@
-// This is a file representation.
-// You can directly edit, format, and save this code.
-// Your changes will be reflected in the user's view.
+// app/api/loyalty/[restaurantId]/route.ts
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -47,4 +45,3 @@ export async function GET(
         return NextResponse.json({ message: 'Внутрішня помилка сервера' }, { status: 500 });
     }
 }
-
